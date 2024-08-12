@@ -58,7 +58,7 @@ impl Connector for WsConnector {
         let (tx, rx) = tokio::sync::oneshot::channel::<ApiResponse>();
         let echo = payload.echo();
         self.request_recorder.insert(echo, tx);
-        let res = {
+        let res = async {
             self.request_tx.as_ref().unwrap().send(payload).await?;
             tokio::select! {
                 response = rx => {
@@ -68,7 +68,8 @@ impl Connector for WsConnector {
                     Err(ConnectError::TimeoutError.into())
                 }
             }
-        };
+        }
+        .await;
         // no matter success or failure, remove the request from the recorder
         self.request_recorder.remove(&echo);
         res
