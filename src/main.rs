@@ -1,11 +1,16 @@
 #![allow(dead_code)]
+#![feature(async_closure)]
 
 #[macro_use]
 extern crate tracing;
 
-use anyhow::Result;
+use core::time;
 
-use crate::schema::{MessageType, SendPrivateMsgParams};
+use anyhow::Result;
+use futures_util::{future, FutureExt};
+use std::future::Future;
+
+use crate::matcher::Rule;
 
 mod bot;
 mod caller;
@@ -17,7 +22,13 @@ mod schema;
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let _ = bot::Bot::run("ws://192.168.1.250:3001").await?;
-    tokio::signal::ctrl_c().await?;
+    let mut bot_instance = bot::Bot::connect("ws://192.168.1.250:3001").await?;
+    bot_instance.on(
+        Rule::on_group_message().into(),
+        // Box::new(|x| {
+        //     return Box::pin(tokio::time::sleep(1 * time::Duration::from_secs(1)));
+        // }),
+    );
+    bot_instance.start().await?;
     Ok(())
 }

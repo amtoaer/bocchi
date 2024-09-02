@@ -1,38 +1,32 @@
-use crate::{
-    caller,
-    connector::{self, Connector},
-    schema::{SendPrivateMsgParams, SendPrivateMsgResult},
-};
 use anyhow::Result;
-use derive_more::derive::Display;
 
-#[derive(Display)]
-#[display("Bot: id: {:?}, nickname: {:?}", id, nickname)]
+use crate::{
+    connector::{self, Connector},
+    matcher::{Handler, MatchUnion, Matcher},
+};
+
 pub struct Bot {
     connector: Box<dyn Connector>,
-    id: i64,
-    nickname: String,
+    match_unions: Vec<MatchUnion>,
 }
 
 impl Bot {
-    // TODO: 最好提供一个不直接运行的方法，比如 build
-    pub async fn run(address: &str) -> Result<Self> {
-        let mut connector = connector::WsConnector::connect(address).await?;
-        connector.spawn().await;
-        let login_info = caller::get_login_info(&*connector).await?;
-        let bot = Self {
-            connector,
-            id: login_info.user_id,
-            nickname: login_info.nickname,
-        };
-        info!("Bot started: {}", bot);
-        Ok(bot)
+    pub async fn connect(address: &str) -> Result<Self> {
+        Ok(Bot {
+            connector: connector::WsConnector::connect(address).await?,
+            match_unions: Vec::new(),
+        })
     }
 
-    pub async fn send_private_msg(
-        &self,
-        param: SendPrivateMsgParams,
-    ) -> Result<SendPrivateMsgResult> {
-        caller::send_private_msg(&*self.connector, param).await
+    pub fn on(&mut self, matcher: Matcher, handler: Handler) {
+        self.match_unions.push(MatchUnion::new(matcher, handler));
+    }
+
+    pub async fn start(&mut self) -> Result<()> {
+        self.connector
+            .spawn(std::mem::replace(&mut self.match_unions, Vec::new()))
+            .await;
+        tokio::signal::ctrl_c().await?;
+        Ok(())
     }
 }

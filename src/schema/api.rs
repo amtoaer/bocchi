@@ -134,8 +134,8 @@ pub struct ApiRequest {
 impl ApiRequest {
     pub fn new(params: RequestParams) -> Self {
         Self {
-            // 这里如果生成的 u64 过长，接口返回的 echo 可能丢失精度，因此限制一下范围
-            echo: rand::thread_rng().gen_range(0..=9999999999999),
+            // 发现这里如果生成的 u64 过长，接口返回的 echo 可能丢失精度，因此减小一些
+            echo: rand::random::<u64>() >> 20,
             params,
         }
     }

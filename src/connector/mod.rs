@@ -5,7 +5,10 @@ mod ws;
 
 pub use ws::WsConnector;
 
-use crate::schema::{ApiRequest, ApiResponse};
+use crate::{
+    matcher::MatchUnion,
+    schema::{ApiRequest, ApiResponse},
+};
 
 #[derive(Debug, Default)]
 pub enum Status {
@@ -20,6 +23,5 @@ pub enum Status {
 pub trait Connector {
     async fn call(&self, request: ApiRequest) -> Result<ApiResponse>;
 
-    // TODO: 设计一个 handler 结构，用于处理信息
-    async fn spawn(&mut self);
+    async fn spawn(&mut self, match_unions: Vec<MatchUnion>);
 }

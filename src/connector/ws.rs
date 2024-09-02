@@ -2,6 +2,7 @@ use std::{str::FromStr, sync::Arc};
 
 use crate::{
     connector::{error::ConnectError, Connector, Status},
+    matcher::MatchUnion,
     schema::{ApiRequest, ApiResponse, Event},
 };
 use anyhow::Result;
@@ -75,7 +76,7 @@ impl Connector for WsConnector {
         res
     }
 
-    async fn spawn(&mut self) {
+    async fn spawn(&mut self, match_unions: Vec<MatchUnion>) {
         if let (Some(mut ws_sink), Some(mut ws_stream)) =
             (self.ws_sink.take(), self.ws_stream.take())
         {
@@ -133,7 +134,11 @@ impl Connector for WsConnector {
                                                 error!("Received response with unknown request ID: {text}");
                                             }
                                         } else if let Ok(msg) = serde_json::from_str::<Event>(&text) {
-                                            info!("Receive event: {msg:?}");
+                                            for match_union in &match_unions{
+                                                if match_union.matcher.is_match(&msg){
+                                                    // match_union.handler.as_ref()
+                                                }
+                                            }
                                         } else {
                                             warn!("Receive unknown message: {text}");
                                         }

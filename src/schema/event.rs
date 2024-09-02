@@ -4,7 +4,7 @@ use crate::schema::MessageSegment;
 
 #[derive(Deserialize, Debug)]
 pub struct Sender {
-    user_id: Option<i64>,
+    pub user_id: Option<i64>,
     nickname: Option<String>,
     card: Option<String>,
     sex: Option<String>,
