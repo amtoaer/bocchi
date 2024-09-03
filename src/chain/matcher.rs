@@ -28,6 +28,11 @@ impl Matcher {
         for rule in &self.condition {
             match rule {
                 Rule::OnText(handler) => {
+                    if !handler(event.raw_message()) {
+                        return false;
+                    }
+                }
+                Rule::OnMessage(handler) => {
                     if !handler(event.message()) {
                         return false;
                     }
@@ -37,12 +42,12 @@ impl Matcher {
                         return false;
                     }
                 }
-                Rule::OnType(handler) => {
+                Rule::OnEventStatic(handler) => {
                     if !handler(event) {
                         return false;
                     }
                 }
-                Rule::OnField(handler) => {
+                Rule::OnEvent(handler) => {
                     if !handler(event) {
                         return false;
                     }

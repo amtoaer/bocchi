@@ -1,12 +1,4 @@
-use crate::{
-    adapter::Caller,
-    error::ApiError,
-    schema::{
-        ApiRequest, DeleteMsgParams, GetForwardMsgParams, GetForwardMsgResult, GetLoginInfoResult,
-        GetMsgParams, GetMsgResult, RequestParams, SendGroupMsgParams, SendGroupMsgResult,
-        SendMsgParams, SendMsgResult, SendPrivateMsgParams, SendPrivateMsgResult,
-    },
-};
+use crate::{adapter::Caller, error::ApiError, schema::*};
 use anyhow::Result;
 
 pub async fn get_login_info(connector: &dyn Caller) -> Result<GetLoginInfoResult> {
@@ -21,24 +13,24 @@ pub async fn get_login_info(connector: &dyn Caller) -> Result<GetLoginInfoResult
 pub async fn send_private_msg(
     connector: &dyn Caller,
     param: SendPrivateMsgParams,
-) -> Result<SendPrivateMsgResult> {
+) -> Result<SendMsgResult> {
     connector
         .call(ApiRequest::new(RequestParams::SendPrivateMsg(param)))
         .await?
         .data
-        .into_send_private_msg()
+        .into_send_msg()
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 
 pub async fn send_group_msg(
     connector: &dyn Caller,
     param: SendGroupMsgParams,
-) -> Result<SendGroupMsgResult> {
+) -> Result<SendMsgResult> {
     connector
         .call(ApiRequest::new(RequestParams::SendGroupMsg(param)))
         .await?
         .data
-        .into_send_group_msg()
+        .into_send_msg()
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 

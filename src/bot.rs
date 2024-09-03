@@ -18,8 +18,9 @@ impl Bot {
         })
     }
 
-    pub fn on(&mut self, matcher: Matcher, handler: Handler) {
-        self.match_unions.push(MatchUnion::new(matcher, handler));
+    pub fn on(&mut self, matcher: impl Into<Matcher>, handler: Handler) {
+        self.match_unions
+            .push(MatchUnion::new(matcher.into(), handler));
     }
 
     pub async fn start(&mut self) -> Result<()> {

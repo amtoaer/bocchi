@@ -76,9 +76,10 @@ impl Connector for WsAdapter {
                 }.await;
                 let _ = status_tx.send(Status::Disconnected(e.err()));
             });
-
             let request_recorder = self.request_recorder.clone();
             let (mut status_rx, status_tx) = (self.status_rx.clone(), self.status_tx.clone());
+            let self = Arc::new(self);
+            let match_unions = Arc::new(match_unions);
             tokio::spawn(async move {
                 let e = async {
                     loop {
@@ -107,14 +108,18 @@ impl Connector for WsAdapter {
                                             }
                                         } else if let Ok(event) = serde_json::from_str::<Event>(&text) {
                                             info!("Receive event: {event:?}");
-                                            for match_union in &match_unions{
-                                                if match_union.matcher.is_match(&event){
-                                                    let res = match_union.handler.as_ref()(&*self, &event).await;
-                                                    if res.is_err(){
-                                                        error!("Failed to handle event: {res:?}");
+                                            let match_unions_clone = match_unions.clone();
+                                            let self_clone = self.clone();
+                                            tokio::spawn(async move {
+                                                for match_union in &*match_unions_clone {
+                                                    if match_union.matcher.is_match(&event) {
+                                                        let res = match_union.handler.as_ref()(self_clone.as_ref().as_ref(), &event).await;
+                                                        if res.is_err() {
+                                                            error!("Failed to handle event: {res:?}");
+                                                        }
                                                     }
                                                 }
-                                            }
+                                            });
                                         } else {
                                             warn!("Receive unknown message: {text}");
                                         }
@@ -169,11 +174,11 @@ impl Caller for WsAdapter {
         get_login_info(self).await
     }
 
-    async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendPrivateMsgResult> {
+    async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendMsgResult> {
         send_private_msg(self, param).await
     }
 
-    async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendGroupMsgResult> {
+    async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendMsgResult> {
         send_group_msg(self, param).await
     }
 

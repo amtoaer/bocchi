@@ -96,4 +96,11 @@ impl Event {
             | Self::PrivateMessage(PrivateMessage { message_id, .. }) => *message_id,
         }
     }
+
+    pub fn raw_message(&self) -> &str {
+        match self {
+            Self::GroupMessage(GroupMessage { raw_message, .. })
+            | Self::PrivateMessage(PrivateMessage { raw_message, .. }) => raw_message.trim(),
+        }
+    }
 }

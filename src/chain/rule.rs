@@ -7,19 +7,20 @@ use crate::{
 
 #[allow(clippy::enum_variant_names)]
 pub enum Rule {
-    OnType(&'static (dyn Fn(&Event) -> bool + Send + Sync)),
-    OnText(Box<dyn Fn(&MessageContent) -> bool + Send + Sync>),
+    OnEventStatic(&'static (dyn Fn(&Event) -> bool + Send + Sync)),
+    OnText(Box<dyn Fn(&str) -> bool + Send + Sync>),
+    OnMessage(Box<dyn Fn(&MessageContent) -> bool + Send + Sync>),
     OnSender(Box<dyn Fn(&Sender) -> bool + Send + Sync>),
-    OnField(Box<dyn Fn(&Event) -> bool + Send + Sync>),
+    OnEvent(Box<dyn Fn(&Event) -> bool + Send + Sync>),
 }
 
 impl Rule {
     pub fn on_group_message() -> Rule {
-        Rule::OnType(&|event: &Event| -> bool { matches!(event, Event::GroupMessage(_)) })
+        Rule::OnEventStatic(&|event: &Event| -> bool { matches!(event, Event::GroupMessage(_)) })
     }
 
     pub fn on_private_message() -> Rule {
-        Rule::OnType(&|event: &Event| -> bool { matches!(event, Event::PrivateMessage(_)) })
+        Rule::OnEventStatic(&|event: &Event| -> bool { matches!(event, Event::PrivateMessage(_)) })
     }
 
     pub fn on_sender_id(user_id: i64) -> Rule {
@@ -29,16 +30,13 @@ impl Rule {
     }
 
     pub fn on_group_id(group_id: u64) -> Rule {
-        Rule::OnField(Box::new(move |event: &Event| -> bool {
+        Rule::OnEvent(Box::new(move |event: &Event| -> bool {
             matches!(event, Event::GroupMessage(e) if e.group_id == group_id)
         }))
     }
 
     fn on_text(is_valid: impl Fn(&str) -> bool + Send + Sync + 'static) -> Rule {
-        Rule::OnText(Box::new(move |message_type: &MessageContent| -> bool {
-            let raw = message_type.raw();
-            is_valid(raw.trim())
-        }))
+        Rule::OnText(Box::new(move |text| is_valid(text.trim())))
     }
 
     pub fn on_exact_match(str: &'static str) -> Rule {

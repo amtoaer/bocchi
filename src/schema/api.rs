@@ -13,13 +13,6 @@ pub struct SendPrivateMsgParams {
     pub auto_escape: bool,
 }
 
-/// 发送私聊消息的响应数据
-#[derive(Debug, Deserialize)]
-pub struct SendPrivateMsgResult {
-    /// 消息 ID
-    message_id: i32,
-}
-
 /// 发送群消息的参数
 #[derive(Debug, Serialize)]
 pub struct SendGroupMsgParams {
@@ -29,13 +22,6 @@ pub struct SendGroupMsgParams {
     message: String,
     /// 消息内容是否作为纯文本发送（即不解析 CQ 码），只在 message 字段是字符串时有效
     auto_escape: bool,
-}
-
-/// 发送群消息的响应数据
-#[derive(Debug, Deserialize)]
-pub struct SendGroupMsgResult {
-    /// 消息 ID
-    message_id: i32,
 }
 
 /// 发送消息的参数
@@ -54,7 +40,7 @@ pub struct SendMsgParams {
     pub auto_escape: bool,
 }
 
-/// 发送消息的响应数据
+/// 发送消息的公共响应数据
 #[derive(Debug, Deserialize)]
 pub struct SendMsgResult {
     /// 消息 ID
@@ -135,7 +121,7 @@ impl ApiRequest {
     pub fn new(params: RequestParams) -> Self {
         Self {
             // 发现这里如果生成的 u64 过长，接口返回的 echo 可能丢失精度，因此减小一些
-            echo: rand::random::<u64>() >> 20,
+            echo: rand::random::<u64>() >> 16,
             params,
         }
     }
@@ -149,8 +135,6 @@ impl ApiRequest {
 #[serde(untagged)]
 pub enum ResponseBody {
     GetLoginInfo(GetLoginInfoResult),
-    SendPrivateMsg(SendPrivateMsgResult),
-    SendGroupMsg(SendGroupMsgResult),
     SendMsg(SendMsgResult),
     GetMsg(GetMsgResult),
     GetForwardMsg(GetForwardMsgResult),

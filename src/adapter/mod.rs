@@ -25,8 +25,8 @@ pub trait Connector: Sync {
 pub trait Caller: Sync {
     async fn call(&self, request: ApiRequest) -> Result<ApiResponse>;
     async fn get_login_info(&self) -> Result<GetLoginInfoResult>;
-    async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendPrivateMsgResult>;
-    async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendGroupMsgResult>;
+    async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendMsgResult>;
+    async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendMsgResult>;
     async fn send_msg(&self, param: SendMsgParams) -> Result<SendMsgResult>;
     async fn delete_msg(&self, param: DeleteMsgParams) -> Result<()>;
     async fn get_msg(&self, param: GetMsgParams) -> Result<GetMsgResult>;
