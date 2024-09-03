@@ -25,8 +25,11 @@ async fn main() -> Result<()> {
         Box::new(|caller, event| {
             Box::pin(async move {
                 let raw = event.message().raw();
-                let msg =
-                    MessageContent::Text(raw.strip_prefix("/echo").unwrap_or(&raw).to_owned());
+                let msg = raw.strip_prefix("/echo").unwrap_or(&raw).trim().to_owned();
+                if msg.is_empty() {
+                    return Ok(());
+                }
+                let msg = MessageContent::Text(msg);
                 let params = match event.group_id() {
                     Some(group_id) => SendMsgParams {
                         user_id: None,

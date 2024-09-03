@@ -97,6 +97,7 @@ impl Connector for WsAdapter {
                                     }
                                     Message::Text(text) => {
                                         if let Ok(resp) = serde_json::from_str::<ApiResponse>(&text){
+                                            info!("Receive response: {resp:?}");
                                             if let Some((_, tx)) = request_recorder.remove(&resp.echo()) {
                                                 if let Err(e) = tx.send(resp) {
                                                     error!("Failed to send response: {e:?}");
@@ -105,9 +106,13 @@ impl Connector for WsAdapter {
                                                 error!("Received response with unknown request ID: {text}");
                                             }
                                         } else if let Ok(event) = serde_json::from_str::<Event>(&text) {
+                                            info!("Receive event: {event:?}");
                                             for match_union in &match_unions{
                                                 if match_union.matcher.is_match(&event){
-                                                    match_union.handler.as_ref()(&*self, &event).await?;
+                                                    let res = match_union.handler.as_ref()(&*self, &event).await;
+                                                    if res.is_err(){
+                                                        error!("Failed to handle event: {res:?}");
+                                                    }
                                                 }
                                             }
                                         } else {
