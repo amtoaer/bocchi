@@ -1,3 +1,10 @@
+#[macro_use]
+extern crate tracing;
+
+mod migrate;
+mod model;
+mod plugin;
+
 use anyhow::Result;
 
 use bocchi::{
@@ -41,5 +48,7 @@ async fn main() -> Result<()> {
             })
         }),
     );
+
+    bot_instance.register_plugin(plugin::signin_plugin());
     bot_instance.start().await
 }

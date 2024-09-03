@@ -21,6 +21,7 @@ tokio = { version = "1.40.0", features = [
     "rt-multi-thread",
     "time",
     "signal",
+    "rt",
 ] }
 anyhow = "1.0.86"
 serde_json = "1.0.127"
@@ -36,3 +37,6 @@ serde = { version = "1.0.209", features = ["derive"] }
 enum-as-inner = "0.6.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+native_db = "0.7.1"
+native_model = "0.4.19"
+chrono = { version = "0.4.38", features = ["serde"] }

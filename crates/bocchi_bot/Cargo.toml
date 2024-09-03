@@ -12,3 +12,9 @@ bocchi = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+native_db = { workspace = true }
+native_model = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
+tracing = { workspace = true }
