@@ -1,19 +1,19 @@
 use anyhow::{bail, Result};
 
 use crate::{
+    adapter::{self, Adapter},
     chain::{Handler, MatchUnion, Matcher},
-    connector::{self, Connector},
 };
 
 pub struct Bot {
-    connector: Option<Box<dyn Connector>>,
+    connector: Option<Box<dyn Adapter>>,
     match_unions: Vec<MatchUnion>,
 }
 
 impl Bot {
     pub async fn connect(address: &str) -> Result<Self> {
         Ok(Bot {
-            connector: Some(connector::WsConnector::connect(address).await?),
+            connector: Some(adapter::WsAdapter::connect(address).await?),
             match_unions: Vec::new(),
         })
     }

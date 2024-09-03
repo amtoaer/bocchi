@@ -30,7 +30,7 @@ pub struct PrivateMessage {
     message_type: String,
     sub_type: String,
     message_id: i32,
-    user_id: i64,
+    user_id: u64,
     message: MessageContent,
     raw_message: String,
     font: i32,
@@ -40,13 +40,13 @@ pub struct PrivateMessage {
 #[derive(Deserialize, Debug)]
 pub struct GroupMessage {
     time: i64,
-    self_id: i64,
+    self_id: u64,
     post_type: String,
     message_type: String,
     sub_type: String,
     message_id: i32,
-    group_id: i64,
-    user_id: i64,
+    pub group_id: u64,
+    user_id: u64,
     anonymous: Option<Anonymous>,
     message: MessageContent,
     raw_message: String,
@@ -73,6 +73,27 @@ impl Event {
         match self {
             Self::GroupMessage(GroupMessage { message, .. })
             | Self::PrivateMessage(PrivateMessage { message, .. }) => message,
+        }
+    }
+
+    pub fn user_id(&self) -> u64 {
+        match self {
+            Self::GroupMessage(GroupMessage { user_id, .. })
+            | Self::PrivateMessage(PrivateMessage { user_id, .. }) => *user_id,
+        }
+    }
+
+    pub fn group_id(&self) -> Option<u64> {
+        match self {
+            Self::GroupMessage(GroupMessage { group_id, .. }) => Some(*group_id),
+            _ => None,
+        }
+    }
+
+    pub fn message_id(&self) -> i32 {
+        match self {
+            Self::GroupMessage(GroupMessage { message_id, .. })
+            | Self::PrivateMessage(PrivateMessage { message_id, .. }) => *message_id,
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -223,4 +225,30 @@ pub enum MessageSegment {
 pub enum MessageContent {
     Text(String),
     Segment(Vec<MessageSegment>),
+}
+
+impl<'a> MessageContent {
+    pub fn text(&'a self) -> Vec<&'a str> {
+        match self {
+            Self::Text(text) => {
+                vec![text.trim()]
+            }
+            Self::Segment(segment) => {
+                let mut res = Vec::new();
+                for seg in segment {
+                    if let MessageSegment::Text { text } = seg {
+                        res.push(text.trim());
+                    }
+                }
+                res
+            }
+        }
+    }
+
+    pub fn raw(&'a self) -> Cow<'a, str> {
+        match self {
+            Self::Text(text) => Cow::Borrowed(text),
+            Self::Segment(_) => Cow::Owned(self.text().join("\n")),
+        }
+    }
 }

@@ -2,7 +2,7 @@ use std::ops;
 
 use crate::{
     chain::Matcher,
-    schema::{Event, MessageContent, MessageSegment, Sender},
+    schema::{Event, MessageContent, Sender},
 };
 
 #[allow(clippy::enum_variant_names)]
@@ -10,6 +10,7 @@ pub enum Rule {
     OnType(&'static (dyn Fn(&Event) -> bool + Send + Sync)),
     OnText(Box<dyn Fn(&MessageContent) -> bool + Send + Sync>),
     OnSender(Box<dyn Fn(&Sender) -> bool + Send + Sync>),
+    OnField(Box<dyn Fn(&Event) -> bool + Send + Sync>),
 }
 
 impl Rule {
@@ -27,40 +28,29 @@ impl Rule {
         }))
     }
 
-    fn on_exact_match(str: &'static str) -> Rule {
-        Rule::OnText(Box::new(move |message_type: &MessageContent| -> bool {
-            match message_type {
-                MessageContent::Text(text) => text == str,
-                MessageContent::Segment(segments) => {
-                    for segment in segments {
-                        if let MessageSegment::Text { text } = segment {
-                            if text == str {
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-            }
+    pub fn on_group_id(group_id: u64) -> Rule {
+        Rule::OnField(Box::new(move |event: &Event| -> bool {
+            matches!(event, Event::GroupMessage(e) if e.group_id == group_id)
         }))
     }
 
-    fn on_prefix(prefix: &'static str) -> Rule {
+    fn on_text(is_valid: impl Fn(&str) -> bool + Send + Sync + 'static) -> Rule {
         Rule::OnText(Box::new(move |message_type: &MessageContent| -> bool {
-            match message_type {
-                MessageContent::Text(text) => text.starts_with(prefix),
-                MessageContent::Segment(segments) => {
-                    for segment in segments {
-                        if let MessageSegment::Text { text } = segment {
-                            if text.starts_with(prefix) {
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-            }
+            let raw = message_type.raw();
+            is_valid(raw.trim())
         }))
+    }
+
+    pub fn on_exact_match(str: &'static str) -> Rule {
+        Self::on_text(move |text| text == str.trim())
+    }
+
+    pub fn on_prefix(prefix: &'static str) -> Rule {
+        Self::on_text(move |text| text.starts_with(prefix.trim()))
+    }
+
+    pub fn on_suffix(suffix: &'static str) -> Rule {
+        Self::on_text(move |text| text.ends_with(suffix.trim()))
     }
 }
 

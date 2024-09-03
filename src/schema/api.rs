@@ -42,15 +42,16 @@ pub struct SendGroupMsgResult {
 #[derive(Debug, Serialize)]
 pub struct SendMsgParams {
     /// 消息类型，支持 private、group，分别对应私聊、群组，如不传入，则根据传入的 *_id 参数判断
-    message_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_type: Option<String>,
     /// 对方 QQ 号（消息类型为 private 时需要）
-    user_id: Option<u64>,
+    pub user_id: Option<u64>,
     /// 群号（消息类型为 group 时需要）
-    group_id: Option<u64>,
+    pub group_id: Option<u64>,
     /// 要发送的内容
-    message: String,
+    pub message: MessageContent,
     /// 消息内容是否作为纯文本发送（即不解析 CQ 码），只在 message 字段是字符串时有效
-    auto_escape: bool,
+    pub auto_escape: bool,
 }
 
 /// 发送消息的响应数据
@@ -115,13 +116,13 @@ pub struct GetLoginInfoResult {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "action", content = "params")]
 pub enum RequestParams {
+    GetLoginInfo,
     SendPrivateMsg(SendPrivateMsgParams),
     SendGroupMsg(SendGroupMsgParams),
     SendMsg(SendMsgParams),
     DeleteMsg(DeleteMsgParams),
     GetMsg(GetMsgParams),
     GetForwardMsg(GetForwardMsgParams),
-    GetLoginInfo,
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {
@@ -147,12 +148,12 @@ impl ApiRequest {
 #[derive(Debug, Deserialize, EnumAsInner)]
 #[serde(untagged)]
 pub enum ResponseBody {
+    GetLoginInfo(GetLoginInfoResult),
     SendPrivateMsg(SendPrivateMsgResult),
     SendGroupMsg(SendGroupMsgResult),
     SendMsg(SendMsgResult),
     GetMsg(GetMsgResult),
     GetForwardMsg(GetForwardMsgResult),
-    GetLoginInfo(GetLoginInfoResult),
 }
 
 #[derive(Debug, Deserialize)]

@@ -42,6 +42,11 @@ impl Matcher {
                         return false;
                     }
                 }
+                Rule::OnField(handler) => {
+                    if !handler(event) {
+                        return false;
+                    }
+                }
             }
         }
         true

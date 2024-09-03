@@ -1,9 +1,10 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
+    adapter::{error::ConnectError, Adapter, Caller, Connector, Status},
+    caller::*,
     chain::MatchUnion,
-    connector::{error::ConnectError, Connector, Status},
-    schema::{ApiRequest, ApiResponse, Event},
+    schema::*,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -19,7 +20,7 @@ use tokio::time;
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 #[derive(Debug)]
-pub struct WsConnector {
+pub struct WsAdapter {
     ws_sink: Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
     ws_stream: Option<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>,
     request_tx: Option<tokio::sync::mpsc::Sender<ApiRequest>>,
@@ -28,12 +29,12 @@ pub struct WsConnector {
     status_rx: tokio::sync::watch::Receiver<Status>,
 }
 
-impl WsConnector {
+impl WsAdapter {
     pub async fn connect(address: &str) -> Result<Box<Self>> {
         let (ws_stream, _) = tokio_tungstenite::connect_async(Uri::from_str(address)?).await?;
         let (ws_sink, ws_stream) = ws_stream.split();
         let (status_tx, status_rx) = tokio::sync::watch::channel(Status::NotConnected);
-        Ok(Box::new(WsConnector {
+        Ok(Box::new(WsAdapter {
             ws_sink: Some(ws_sink),
             ws_stream: Some(ws_stream),
             request_tx: None,
@@ -45,37 +46,7 @@ impl WsConnector {
 }
 
 #[async_trait]
-impl Connector for WsConnector {
-    async fn call(&self, payload: ApiRequest) -> Result<ApiResponse> {
-        {
-            let status = &*self.status_rx.borrow();
-            if matches!(status, Status::NotConnected | Status::Disconnected(_)) {
-                return Err(ConnectError::StatusError(format!(
-                    "Invalid status, expect Connected, actual {status:?}"
-                ))
-                .into());
-            }
-        }
-        let (tx, rx) = tokio::sync::oneshot::channel::<ApiResponse>();
-        let echo = payload.echo();
-        self.request_recorder.insert(echo, tx);
-        let res = async {
-            self.request_tx.as_ref().unwrap().send(payload).await?;
-            tokio::select! {
-                response = rx => {
-                    Ok(response?)
-                }
-                _ = time::sleep(time::Duration::from_secs(5)) => {
-                    Err(ConnectError::TimeoutError.into())
-                }
-            }
-        }
-        .await;
-        // no matter success or failure, remove the request from the recorder
-        self.request_recorder.remove(&echo);
-        res
-    }
-
+impl Connector for WsAdapter {
     async fn spawn(mut self: Box<Self>, match_unions: Vec<MatchUnion>) {
         if let (Some(mut ws_sink), Some(mut ws_stream)) =
             (self.ws_sink.take(), self.ws_stream.take())
@@ -156,3 +127,67 @@ impl Connector for WsConnector {
         }
     }
 }
+
+#[async_trait]
+impl Caller for WsAdapter {
+    async fn call(&self, payload: ApiRequest) -> Result<ApiResponse> {
+        {
+            let status = &*self.status_rx.borrow();
+            if matches!(status, Status::NotConnected | Status::Disconnected(_)) {
+                return Err(ConnectError::StatusError(format!(
+                    "Invalid status, expect Connected, actual {status:?}"
+                ))
+                .into());
+            }
+        }
+        let (tx, rx) = tokio::sync::oneshot::channel::<ApiResponse>();
+        let echo = payload.echo();
+        self.request_recorder.insert(echo, tx);
+        let res = async {
+            self.request_tx.as_ref().unwrap().send(payload).await?;
+            tokio::select! {
+                response = rx => {
+                    Ok(response?)
+                }
+                _ = time::sleep(time::Duration::from_secs(5)) => {
+                    Err(ConnectError::TimeoutError.into())
+                }
+            }
+        }
+        .await;
+        // no matter success or failure, remove the request from the recorder
+        self.request_recorder.remove(&echo);
+        res
+    }
+
+    async fn get_login_info(&self) -> Result<GetLoginInfoResult> {
+        get_login_info(self).await
+    }
+
+    async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendPrivateMsgResult> {
+        send_private_msg(self, param).await
+    }
+
+    async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendGroupMsgResult> {
+        send_group_msg(self, param).await
+    }
+
+    async fn send_msg(&self, param: SendMsgParams) -> Result<SendMsgResult> {
+        send_msg(self, param).await
+    }
+
+    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<()> {
+        delete_msg(self, param).await
+    }
+
+    async fn get_msg(&self, param: GetMsgParams) -> Result<GetMsgResult> {
+        get_msg(self, param).await
+    }
+
+    async fn get_forward_msg(&self, param: GetForwardMsgParams) -> Result<GetForwardMsgResult> {
+        get_forward_msg(self, param).await
+    }
+}
+
+#[async_trait]
+impl Adapter for WsAdapter {}

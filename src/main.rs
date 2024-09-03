@@ -1,20 +1,18 @@
 #![allow(dead_code)]
-#![feature(async_fn_traits)]
 #[macro_use]
 extern crate tracing;
 
 use anyhow::Result;
 
 use crate::{
-    caller::send_private_msg,
     chain::Rule,
-    schema::{MessageContent, SendPrivateMsgParams},
+    schema::{MessageContent, SendMsgParams},
 };
 
+mod adapter;
 mod bot;
 mod caller;
 mod chain;
-mod connector;
 mod error;
 mod schema;
 
@@ -23,19 +21,29 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let mut bot_instance = bot::Bot::connect("ws://192.168.1.250:3001").await?;
     bot_instance.on(
-        Rule::on_group_message() & Rule::on_sender_id(1361974998),
+        Rule::on_prefix("/echo").into(),
         Box::new(|caller, event| {
             Box::pin(async move {
-                println!("{:?}", event);
-                send_private_msg(
-                    caller,
-                    SendPrivateMsgParams {
-                        user_id: 1361974998,
-                        message: MessageContent::Text("I received it!".to_string()),
+                let raw = event.message().raw();
+                let msg =
+                    MessageContent::Text(raw.strip_prefix("/echo").unwrap_or(&raw).to_owned());
+                let params = match event.group_id() {
+                    Some(group_id) => SendMsgParams {
+                        user_id: None,
+                        group_id: Some(group_id),
+                        message: msg,
                         auto_escape: true,
+                        message_type: None,
                     },
-                )
-                .await?;
+                    None => SendMsgParams {
+                        user_id: Some(event.user_id()),
+                        group_id: None,
+                        message: msg,
+                        auto_escape: true,
+                        message_type: None,
+                    },
+                };
+                caller.send_msg(params).await?;
                 Ok(())
             })
         }),
