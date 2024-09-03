@@ -15,6 +15,12 @@ pub enum Rule {
 }
 
 impl Rule {
+    pub fn on_message() -> Rule {
+        Rule::OnEventStatic(&|event: &Event| -> bool {
+            matches!(event, Event::GroupMessage(_) | Event::PrivateMessage(_))
+        })
+    }
+
     pub fn on_group_message() -> Rule {
         Rule::OnEventStatic(&|event: &Event| -> bool { matches!(event, Event::GroupMessage(_)) })
     }

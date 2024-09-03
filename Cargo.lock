@@ -89,6 +89,15 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "tracing",
+]
+
+[[package]]
+name = "bocchi_bot"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bocchi",
+ "tokio",
  "tracing-subscriber",
 ]
 

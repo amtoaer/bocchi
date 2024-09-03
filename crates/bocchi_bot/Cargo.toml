@@ -1,0 +1,14 @@
+[package]
+name = "bocchi_bot"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+readme = "../../README.md"
+
+[dependencies]
+bocchi = { workspace = true }
+tokio = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

@@ -1,27 +1,17 @@
-#![allow(dead_code)]
-#[macro_use]
-extern crate tracing;
-
 use anyhow::Result;
 
-use crate::{
+use bocchi::{
+    bot::Bot,
     chain::Rule,
     schema::{MessageContent, SendMsgParams},
 };
 
-mod adapter;
-mod bot;
-mod caller;
-mod chain;
-mod error;
-mod schema;
-
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let mut bot_instance = bot::Bot::connect("ws://192.168.1.250:3001").await?;
+    let mut bot_instance = Bot::connect("ws://192.168.1.250:3001").await?;
     bot_instance.on(
-        Rule::on_prefix("/echo"),
+        Rule::on_message() & Rule::on_prefix("/echo"),
         Box::new(|caller, event| {
             Box::pin(async move {
                 let raw = event.raw_message();

@@ -1,9 +1,18 @@
-[package]
-name = "bocchi"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["crates/*"]
+default-members = ["crates/bocchi_bot"]
+resolver = "2"
 
-[dependencies]
+[workspace.package]
+version = "0.1.0"
+authors = ["amtoaer <amtoaer@gmail.com>"]
+license = "MIT"
+description = "基于 Tokio 的异步 OneBot 11 客户端实现"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+bocchi = { path = "crates/bocchi" }
 tokio-tungstenite = { version = "0.23.1", features = [] }
 tokio = { version = "1.40.0", features = [
     "net",

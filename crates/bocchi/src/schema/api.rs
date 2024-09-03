@@ -44,7 +44,7 @@ pub struct SendMsgParams {
 #[derive(Debug, Deserialize)]
 pub struct SendMsgResult {
     /// 消息 ID
-    message_id: i32,
+    pub message_id: i32,
 }
 
 /// 撤回消息的参数
@@ -65,17 +65,17 @@ pub struct GetMsgParams {
 #[derive(Debug, Deserialize)]
 pub struct GetMsgResult {
     /// 发送时间
-    time: i32,
+    pub time: i32,
     /// 消息类型，同 消息事件
-    message_type: String,
+    pub message_type: String,
     /// 消息 ID
-    message_id: i32,
+    pub message_id: i32,
     /// 消息真实 ID
-    real_id: i32,
+    pub real_id: i32,
     /// 发送人信息，同 消息事件
-    sender: serde_json::Value, // 使用 serde_json::Value 作为占位符
+    pub sender: serde_json::Value, // 使用 serde_json::Value 作为占位符
     /// 消息内容
-    message: String,
+    pub message: String,
 }
 
 /// 获取合并转发消息的参数
@@ -89,7 +89,7 @@ pub struct GetForwardMsgParams {
 #[derive(Debug, Deserialize)]
 pub struct GetForwardMsgResult {
     /// 消息内容，使用消息的数组格式表示，数组中的消息段全部为 node 消息段
-    message: MessageContent,
+    pub message: MessageContent,
 }
 
 /// 获取合并转发消息的响应数据
