@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::schema::MessageSegment;
+use crate::schema::MessageContent;
 
 #[derive(Deserialize, Debug)]
 pub struct Sender {
@@ -31,7 +31,7 @@ pub struct PrivateMessage {
     sub_type: String,
     message_id: i32,
     user_id: i64,
-    message: Vec<MessageSegment>,
+    message: MessageContent,
     raw_message: String,
     font: i32,
     sender: Sender,
@@ -48,7 +48,7 @@ pub struct GroupMessage {
     group_id: i64,
     user_id: i64,
     anonymous: Option<Anonymous>,
-    message: Vec<MessageSegment>,
+    message: MessageContent,
     raw_message: String,
     font: i32,
     sender: Sender,
@@ -59,4 +59,20 @@ pub struct GroupMessage {
 pub enum Event {
     GroupMessage(GroupMessage),
     PrivateMessage(PrivateMessage),
+}
+
+impl Event {
+    pub fn sender(&self) -> &Sender {
+        match self {
+            Self::GroupMessage(GroupMessage { sender, .. })
+            | Self::PrivateMessage(PrivateMessage { sender, .. }) => sender,
+        }
+    }
+
+    pub fn message(&self) -> &MessageContent {
+        match self {
+            Self::GroupMessage(GroupMessage { message, .. })
+            | Self::PrivateMessage(PrivateMessage { message, .. }) => message,
+        }
+    }
 }

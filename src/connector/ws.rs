@@ -1,8 +1,8 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
+    chain::MatchUnion,
     connector::{error::ConnectError, Connector, Status},
-    matcher::MatchUnion,
     schema::{ApiRequest, ApiResponse, Event},
 };
 use anyhow::Result;
@@ -76,7 +76,7 @@ impl Connector for WsConnector {
         res
     }
 
-    async fn spawn(&mut self, match_unions: Vec<MatchUnion>) {
+    async fn spawn(mut self: Box<Self>, match_unions: Vec<MatchUnion>) {
         if let (Some(mut ws_sink), Some(mut ws_stream)) =
             (self.ws_sink.take(), self.ws_stream.take())
         {
@@ -125,18 +125,18 @@ impl Connector for WsConnector {
                                         break;
                                     }
                                     Message::Text(text) => {
-                                        if let Ok(msg) = serde_json::from_str::<ApiResponse>(&text){
-                                            if let Some((_, tx)) = request_recorder.remove(&msg.echo()) {
-                                                if let Err(e) = tx.send(msg) {
+                                        if let Ok(resp) = serde_json::from_str::<ApiResponse>(&text){
+                                            if let Some((_, tx)) = request_recorder.remove(&resp.echo()) {
+                                                if let Err(e) = tx.send(resp) {
                                                     error!("Failed to send response: {e:?}");
                                                 }
                                             } else {
                                                 error!("Received response with unknown request ID: {text}");
                                             }
-                                        } else if let Ok(msg) = serde_json::from_str::<Event>(&text) {
+                                        } else if let Ok(event) = serde_json::from_str::<Event>(&text) {
                                             for match_union in &match_unions{
-                                                if match_union.matcher.is_match(&msg){
-                                                    // match_union.handler.as_ref()
+                                                if match_union.matcher.is_match(&event){
+                                                    match_union.handler.as_ref()(&*self, &event).await?;
                                                 }
                                             }
                                         } else {

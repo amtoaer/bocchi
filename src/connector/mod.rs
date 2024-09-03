@@ -6,7 +6,7 @@ mod ws;
 pub use ws::WsConnector;
 
 use crate::{
-    matcher::MatchUnion,
+    chain::MatchUnion,
     schema::{ApiRequest, ApiResponse},
 };
 
@@ -20,8 +20,8 @@ pub enum Status {
 }
 
 #[async_trait]
-pub trait Connector {
+pub trait Connector: Sync {
     async fn call(&self, request: ApiRequest) -> Result<ApiResponse>;
 
-    async fn spawn(&mut self, match_unions: Vec<MatchUnion>);
+    async fn spawn(mut self: Box<Self>, match_unions: Vec<MatchUnion>);
 }

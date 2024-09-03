@@ -1,6 +1,6 @@
 use std::{cmp::max, ops};
 
-use crate::{matcher::Rule, schema::Event};
+use crate::{chain::Rule, schema::Event};
 
 pub struct Matcher {
     pub condition: Vec<Rule>,
@@ -25,6 +25,25 @@ impl Matcher {
     }
 
     pub fn is_match(&self, event: &Event) -> bool {
+        for rule in &self.condition {
+            match rule {
+                Rule::OnText(handler) => {
+                    if !handler(event.message()) {
+                        return false;
+                    }
+                }
+                Rule::OnSender(handler) => {
+                    if !handler(event.sender()) {
+                        return false;
+                    }
+                }
+                Rule::OnType(handler) => {
+                    if !handler(event) {
+                        return false;
+                    }
+                }
+            }
+        }
         true
     }
 }
@@ -34,11 +53,7 @@ impl ops::BitAnd<Matcher> for Matcher {
 
     fn bitand(self, rhs: Matcher) -> Self::Output {
         Self {
-            condition: self
-                .condition
-                .into_iter()
-                .chain(rhs.condition.into_iter())
-                .collect(),
+            condition: self.condition.into_iter().chain(rhs.condition).collect(),
             priority: max(self.priority, rhs.priority),
         }
     }

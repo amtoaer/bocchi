@@ -1,7 +1,6 @@
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::schema::message::MessageType;
+use crate::schema::message::MessageContent;
 use enum_as_inner::EnumAsInner;
 /// 发送私聊消息的参数
 #[derive(Debug, Serialize)]
@@ -9,7 +8,7 @@ pub struct SendPrivateMsgParams {
     /// 对方 QQ 号
     pub user_id: u64,
     /// 要发送的内容
-    pub message: MessageType,
+    pub message: MessageContent,
     /// 消息内容是否作为纯文本发送（即不解析 CQ 码），只在 message 字段是字符串时有效
     pub auto_escape: bool,
 }
@@ -103,7 +102,7 @@ pub struct GetForwardMsgParams {
 #[derive(Debug, Deserialize)]
 pub struct GetForwardMsgResult {
     /// 消息内容，使用消息的数组格式表示，数组中的消息段全部为 node 消息段
-    message: MessageType,
+    message: MessageContent,
 }
 
 /// 获取合并转发消息的响应数据
@@ -177,7 +176,7 @@ mod tests {
         let send_private_msg =
             ApiRequest::new(RequestParams::SendPrivateMsg(SendPrivateMsgParams {
                 user_id: 10000,
-                message: MessageType::Text("Hello, world!".to_string()),
+                message: MessageContent::Text("Hello, world!".to_string()),
                 auto_escape: false,
             }));
         assert_eq!(
