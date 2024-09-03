@@ -1,38 +1,38 @@
-use crate::{
-    caller,
-    connector::{self, Connector},
-    schema::{SendPrivateMsgParams, SendPrivateMsgResult},
-};
-use anyhow::Result;
-use derive_more::derive::Display;
+use anyhow::{bail, Result};
 
-#[derive(Display)]
-#[display("Bot: id: {:?}, nickname: {:?}", id, nickname)]
+use crate::{
+    adapter::{self, Adapter},
+    chain::{Handler, MatchUnion, Matcher},
+};
+
 pub struct Bot {
-    connector: Box<dyn Connector>,
-    id: i64,
-    nickname: String,
+    connector: Option<Box<dyn Adapter>>,
+    match_unions: Vec<MatchUnion>,
 }
 
 impl Bot {
-    // TODO: 最好提供一个不直接运行的方法，比如 build
-    pub async fn run(address: &str) -> Result<Self> {
-        let mut connector = connector::WsConnector::connect(address).await?;
-        connector.spawn().await;
-        let login_info = caller::get_login_info(&*connector).await?;
-        let bot = Self {
-            connector,
-            id: login_info.user_id,
-            nickname: login_info.nickname,
-        };
-        info!("Bot started: {}", bot);
-        Ok(bot)
+    pub async fn connect(address: &str) -> Result<Self> {
+        Ok(Bot {
+            connector: Some(adapter::WsAdapter::connect(address).await?),
+            match_unions: Vec::new(),
+        })
     }
 
-    pub async fn send_private_msg(
-        &self,
-        param: SendPrivateMsgParams,
-    ) -> Result<SendPrivateMsgResult> {
-        caller::send_private_msg(&*self.connector, param).await
+    pub fn on(&mut self, matcher: impl Into<Matcher>, handler: Handler) {
+        self.match_unions
+            .push(MatchUnion::new(matcher.into(), handler));
+    }
+
+    pub async fn start(&mut self) -> Result<()> {
+        if self.connector.is_none() {
+            bail!("bot already started!");
+        }
+        // 已经断言过，这里 unwrap 是安全的
+        let connector = self.connector.take().unwrap();
+        let mut match_unions = std::mem::take(&mut self.match_unions);
+        match_unions.sort_by_key(|u| u.matcher.priority);
+        connector.spawn(match_unions).await;
+        info!("bot started!");
+        Ok(tokio::signal::ctrl_c().await?)
     }
 }

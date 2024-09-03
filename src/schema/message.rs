@@ -220,7 +220,7 @@ pub enum MessageSegment {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
-pub enum MessageType {
+pub enum MessageContent {
     Text(String),
     Segment(Vec<MessageSegment>),
 }
