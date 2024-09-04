@@ -16,19 +16,18 @@ pub fn echo_plugin() -> Plugin {
                     .trim_start_matches("/echo")
                     .trim()
                     .to_owned();
-                if plain_text.is_empty() {
-                    return Ok(());
+                if !plain_text.is_empty() {
+                    let msg = MessageContent::Text(plain_text);
+                    caller
+                        .send_msg(SendMsgParams {
+                            user_id: Some(event.user_id()),
+                            group_id: event.group_id(),
+                            message: msg,
+                            auto_escape: true,
+                            message_type: None,
+                        })
+                        .await?;
                 }
-                let msg = MessageContent::Text(plain_text);
-                caller
-                    .send_msg(SendMsgParams {
-                        user_id: Some(event.user_id()),
-                        group_id: event.group_id(),
-                        message: msg,
-                        auto_escape: true,
-                        message_type: None,
-                    })
-                    .await?;
                 Ok(())
             })
         },

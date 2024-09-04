@@ -162,7 +162,7 @@ mod tests {
             ApiRequest::new(RequestParams::SendPrivateMsg(SendPrivateMsgParams {
                 user_id: 10000,
                 message: MessageContent::Text("Hello, world!".to_string()),
-                auto_escape: false,
+                auto_escape: true,
             }));
         assert_eq!(
             serde_json::to_string(&send_private_msg).unwrap(),

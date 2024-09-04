@@ -72,7 +72,7 @@ impl Connector for WsAdapter {
                         }
                     }
                     // magic from https://rust-lang.github.io/async-book/07_workarounds/02_err_in_async_blocks.html
-                    Ok::<(), anyhow::Error>(())
+                    Ok::<_, anyhow::Error>(())
                 }.await;
                 let _ = status_tx.send(Status::Disconnected(e.err()));
             });
@@ -129,10 +129,10 @@ impl Connector for WsAdapter {
                             }
                         }
                     }
-                    Ok::<(), anyhow::Error>(())
+                    Ok::<_, anyhow::Error>(())
                 }.await;
                 let _ = status_tx.send(Status::Disconnected(e.err()));
-                Ok::<(), anyhow::Error>(())
+                Ok::<_, anyhow::Error>(())
             });
         }
     }

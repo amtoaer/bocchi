@@ -1,7 +1,7 @@
-mod check_in;
+mod daily_bonus;
 mod echo;
 mod gpt;
 
-pub use check_in::check_in_plugin;
+pub use daily_bonus::daily_bonus_plugin;
 pub use echo::echo_plugin;
 pub use gpt::gpt_plugin;
