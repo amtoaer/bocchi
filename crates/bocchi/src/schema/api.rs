@@ -94,7 +94,7 @@ pub struct GetForwardMsgResult {
 
 /// 发送表情回应的参数
 #[derive(Debug, Serialize)]
-pub struct SendMsgEmojiLikeParams {
+pub struct SetMsgEmojiLikeParams {
     pub message_id: i32,
     pub emoji_id: i32,
 }
@@ -117,7 +117,7 @@ pub enum RequestParams {
     GetMsg(GetMsgParams),
     GetForwardMsg(GetForwardMsgParams),
     #[cfg(feature = "napcat")]
-    SendMsgEmojiLike(SendMsgEmojiLikeParams),
+    SetMsgEmojiLike(SetMsgEmojiLikeParams),
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {
@@ -147,6 +147,7 @@ pub enum ResponseBody {
     SendMsg(SendMsgResult),
     GetMsg(GetMsgResult),
     GetForwardMsg(GetForwardMsgResult),
+    Fallback(serde_json::Value),
 }
 
 #[derive(Debug, Deserialize)]

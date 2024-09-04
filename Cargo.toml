@@ -41,3 +41,4 @@ native_db = "0.7.1"
 native_model = "0.4.19"
 chrono = { version = "0.4.38", features = ["serde"] }
 markdown = "1.0.0-alpha.20"
+reqwest = { version = "0.12", features = ["json"] }

@@ -98,7 +98,6 @@ impl Connector for WsAdapter {
                                     }
                                     Message::Text(text) => {
                                         if let Ok(resp) = serde_json::from_str::<ApiResponse>(&text){
-                                            info!("Receive response: {resp:?}");
                                             if let Some((_, tx)) = request_recorder.remove(&resp.echo()) {
                                                 if let Err(e) = tx.send(resp) {
                                                     error!("Failed to send response: {e:?}");
@@ -186,7 +185,7 @@ impl Caller for WsAdapter {
         send_msg(self, param).await
     }
 
-    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<()> {
+    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<serde_json::Value> {
         delete_msg(self, param).await
     }
 
@@ -199,8 +198,8 @@ impl Caller for WsAdapter {
     }
 
     #[cfg(feature = "napcat")]
-    async fn send_msg_emoji_like(&self, param: SendMsgEmojiLikeParams) -> Result<()> {
-        send_msg_emoji_like(self, param).await
+    async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value> {
+        set_msg_emoji_like(self, param).await
     }
 }
 

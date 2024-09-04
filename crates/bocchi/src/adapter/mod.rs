@@ -28,11 +28,11 @@ pub trait Caller: Sync {
     async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendMsgResult>;
     async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendMsgResult>;
     async fn send_msg(&self, param: SendMsgParams) -> Result<SendMsgResult>;
-    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<()>;
+    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<serde_json::Value>;
     async fn get_msg(&self, param: GetMsgParams) -> Result<GetMsgResult>;
     async fn get_forward_msg(&self, param: GetForwardMsgParams) -> Result<GetForwardMsgResult>;
     #[cfg(feature = "napcat")]
-    async fn send_msg_emoji_like(&self, param: SendMsgEmojiLikeParams) -> Result<()>;
+    async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value>;
 }
 
 #[async_trait]
