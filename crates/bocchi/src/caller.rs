@@ -70,3 +70,14 @@ pub async fn get_forward_msg(
         .into_get_forward_msg()
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
+
+#[cfg(feature = "napcat")]
+pub async fn send_msg_emoji_like(
+    connector: &dyn Caller,
+    param: SendMsgEmojiLikeParams,
+) -> Result<()> {
+    connector
+        .call(ApiRequest::new(RequestParams::SendMsgEmojiLike(param)))
+        .await?;
+    Ok(())
+}

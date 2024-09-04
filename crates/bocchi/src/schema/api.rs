@@ -92,7 +92,14 @@ pub struct GetForwardMsgResult {
     pub message: MessageContent,
 }
 
-/// 获取合并转发消息的响应数据
+/// 发送表情回应的参数
+#[derive(Debug, Serialize)]
+pub struct SendMsgEmojiLikeParams {
+    pub message_id: i32,
+    pub emoji_id: i32,
+}
+
+/// 获取登录信息的响应数据
 #[derive(Debug, Deserialize)]
 pub struct GetLoginInfoResult {
     pub user_id: i64,
@@ -109,6 +116,8 @@ pub enum RequestParams {
     DeleteMsg(DeleteMsgParams),
     GetMsg(GetMsgParams),
     GetForwardMsg(GetForwardMsgParams),
+    #[cfg(feature = "napcat")]
+    SendMsgEmojiLike(SendMsgEmojiLikeParams),
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {

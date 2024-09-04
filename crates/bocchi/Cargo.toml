@@ -7,6 +7,9 @@ license = { workspace = true }
 publish = { workspace = true }
 readme = "../../README.md"
 
+[features]
+napcat = []
+
 [dependencies]
 tokio-tungstenite = { workspace = true }
 tokio = { workspace = true }

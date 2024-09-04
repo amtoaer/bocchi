@@ -31,6 +31,8 @@ pub trait Caller: Sync {
     async fn delete_msg(&self, param: DeleteMsgParams) -> Result<()>;
     async fn get_msg(&self, param: GetMsgParams) -> Result<GetMsgResult>;
     async fn get_forward_msg(&self, param: GetForwardMsgParams) -> Result<GetForwardMsgResult>;
+    #[cfg(feature = "napcat")]
+    async fn send_msg_emoji_like(&self, param: SendMsgEmojiLikeParams) -> Result<()>;
 }
 
 #[async_trait]
