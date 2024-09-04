@@ -2,6 +2,7 @@ use std::{cmp::max, ops};
 
 use crate::{chain::Rule, schema::Event};
 
+#[derive(Default)]
 pub struct Matcher {
     pub condition: Vec<Rule>,
     pub priority: u8,
@@ -9,10 +10,7 @@ pub struct Matcher {
 
 impl Matcher {
     pub fn new() -> Self {
-        Self {
-            condition: Vec::new(),
-            priority: 0,
-        }
+        Self::default()
     }
 
     pub fn set_priority(mut self, priority: u8) -> Self {

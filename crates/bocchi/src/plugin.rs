@@ -1,10 +1,11 @@
 use crate::chain::{Handler, MatchUnion, Matcher};
 
+#[derive(Default)]
 pub struct Plugin(Vec<MatchUnion>);
 
 impl Plugin {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self::default()
     }
 
     pub fn on(&mut self, matcher: impl Into<Matcher>, handler: Handler) {

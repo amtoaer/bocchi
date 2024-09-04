@@ -107,6 +107,16 @@ impl Event {
         }
     }
 
+    pub fn nickname(&self) -> String {
+        match self {
+            Self::GroupMessage(GroupMessage { sender, .. })
+            | Self::PrivateMessage(PrivateMessage { sender, .. }) => {
+                sender.nickname.clone().unwrap_or_default()
+            }
+            _ => panic!("Event::nickname() called on non-message event"),
+        }
+    }
+
     pub fn group_id(&self) -> Option<u64> {
         match self {
             Self::GroupMessage(GroupMessage { group_id, .. }) => Some(*group_id),
