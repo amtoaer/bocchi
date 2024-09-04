@@ -72,7 +72,7 @@ impl Connector for WsAdapter {
                         }
                     }
                     // magic from https://rust-lang.github.io/async-book/07_workarounds/02_err_in_async_blocks.html
-                    Ok::<(), anyhow::Error>(())
+                    Ok::<_, anyhow::Error>(())
                 }.await;
                 let _ = status_tx.send(Status::Disconnected(e.err()));
             });
@@ -98,7 +98,6 @@ impl Connector for WsAdapter {
                                     }
                                     Message::Text(text) => {
                                         if let Ok(resp) = serde_json::from_str::<ApiResponse>(&text){
-                                            info!("Receive response: {resp:?}");
                                             if let Some((_, tx)) = request_recorder.remove(&resp.echo()) {
                                                 if let Err(e) = tx.send(resp) {
                                                     error!("Failed to send response: {e:?}");
@@ -129,10 +128,10 @@ impl Connector for WsAdapter {
                             }
                         }
                     }
-                    Ok::<(), anyhow::Error>(())
+                    Ok::<_, anyhow::Error>(())
                 }.await;
                 let _ = status_tx.send(Status::Disconnected(e.err()));
-                Ok::<(), anyhow::Error>(())
+                Ok::<_, anyhow::Error>(())
             });
         }
     }
@@ -186,7 +185,7 @@ impl Caller for WsAdapter {
         send_msg(self, param).await
     }
 
-    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<()> {
+    async fn delete_msg(&self, param: DeleteMsgParams) -> Result<serde_json::Value> {
         delete_msg(self, param).await
     }
 
@@ -196,6 +195,11 @@ impl Caller for WsAdapter {
 
     async fn get_forward_msg(&self, param: GetForwardMsgParams) -> Result<GetForwardMsgResult> {
         get_forward_msg(self, param).await
+    }
+
+    #[cfg(feature = "napcat")]
+    async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value> {
+        set_msg_emoji_like(self, param).await
     }
 }
 

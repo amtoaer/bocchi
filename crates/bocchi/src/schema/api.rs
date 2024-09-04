@@ -92,7 +92,14 @@ pub struct GetForwardMsgResult {
     pub message: MessageContent,
 }
 
-/// 获取合并转发消息的响应数据
+/// 发送表情回应的参数
+#[derive(Debug, Serialize)]
+pub struct SetMsgEmojiLikeParams {
+    pub message_id: i32,
+    pub emoji_id: i32,
+}
+
+/// 获取登录信息的响应数据
 #[derive(Debug, Deserialize)]
 pub struct GetLoginInfoResult {
     pub user_id: i64,
@@ -109,6 +116,8 @@ pub enum RequestParams {
     DeleteMsg(DeleteMsgParams),
     GetMsg(GetMsgParams),
     GetForwardMsg(GetForwardMsgParams),
+    #[cfg(feature = "napcat")]
+    SetMsgEmojiLike(SetMsgEmojiLikeParams),
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {
@@ -138,6 +147,7 @@ pub enum ResponseBody {
     SendMsg(SendMsgResult),
     GetMsg(GetMsgResult),
     GetForwardMsg(GetForwardMsgResult),
+    Fallback(serde_json::Value),
 }
 
 #[derive(Debug, Deserialize)]
@@ -162,7 +172,7 @@ mod tests {
             ApiRequest::new(RequestParams::SendPrivateMsg(SendPrivateMsgParams {
                 user_id: 10000,
                 message: MessageContent::Text("Hello, world!".to_string()),
-                auto_escape: false,
+                auto_escape: true,
             }));
         assert_eq!(
             serde_json::to_string(&send_private_msg).unwrap(),

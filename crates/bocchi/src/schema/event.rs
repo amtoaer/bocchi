@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use serde::Deserialize;
 
-use crate::schema::MessageContent;
+use crate::schema::{MessageContent, MessageSegment};
 
 #[derive(Deserialize, Debug)]
 pub struct Sender {
@@ -82,7 +84,7 @@ pub enum Event {
     HeartBeat(HeartBeat),
 }
 
-impl Event {
+impl<'a> Event {
     pub fn sender(&self) -> &Sender {
         match self {
             Self::GroupMessage(GroupMessage { sender, .. })
@@ -133,11 +135,28 @@ impl Event {
         }
     }
 
+    /// 带有 CQ 码的原始消息
     pub fn raw_message(&self) -> &str {
         match self {
             Self::GroupMessage(GroupMessage { raw_message, .. })
             | Self::PrivateMessage(PrivateMessage { raw_message, .. }) => raw_message.trim(),
             _ => panic!("Event::raw_message() called on non-message event"),
+        }
+    }
+
+    /// 不带有 CQ 码的纯文本消息
+    pub fn plain_text(&'a self) -> Cow<'a, str> {
+        let msg = self.message();
+        match msg {
+            MessageContent::Text(text) => Cow::Borrowed(text),
+            MessageContent::Segment(segment) => segment
+                .iter()
+                .filter_map(|seg| match seg {
+                    MessageSegment::Text { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect::<String>()
+                .into(),
         }
     }
 }

@@ -7,25 +7,22 @@ use rand::Rng;
 
 use crate::{migrate::database, model::points::v1::Point};
 
-pub fn signin_plugin() -> Plugin {
+pub fn daily_bonus_plugin() -> Plugin {
     let mut plugin = Plugin::new();
 
     plugin.on(
-        Rule::on_message() & Rule::on_prefix("/signin"),
-        Box::new(|caller, event| {
+        Rule::on_message() & Rule::on_exact_match("daily bonus"),
+        |caller, event| {
             Box::pin(async move {
                 let (user_id, nickname) = (event.user_id(), event.nickname());
                 let res = tokio::task::spawn_blocking(move || {
-                    let (mut got_point, mut sign_in) = (0, true);
+                    let mut got_point = 0;
                     let db = database();
                     let rw = db.rw_transaction()?;
                     let point: Option<Point> = rw.get().primary(user_id)?;
                     match point {
                         Some(mut point) => {
-                            if point.last_update.date_naive() == chrono::Local::now().date_naive() {
-                                // 今天已经签到过
-                                sign_in = false;
-                            } else {
+                            if point.last_update.date_naive() != chrono::Local::now().date_naive() {
                                 got_point = rand::thread_rng().gen_range(1..=100);
                                 point.point += got_point;
                                 point.name = nickname.to_owned();
@@ -45,12 +42,12 @@ pub fn signin_plugin() -> Plugin {
                         }
                     }
                     rw.commit()?;
-                    Result::<_, anyhow::Error>::Ok((got_point, sign_in))
+                    Ok::<_, anyhow::Error>(got_point)
                 })
                 .await?;
                 match res {
                     Err(e) => {
-                        error!("Sign in error: {:?}", e);
+                        error!("daily_bonus error: {:?}", e);
                         caller
                             .send_msg(SendMsgParams {
                                 user_id: Some(user_id),
@@ -68,8 +65,8 @@ pub fn signin_plugin() -> Plugin {
                             })
                             .await?;
                     }
-                    Ok((got_point, sign_in)) => {
-                        let msg = if sign_in {
+                    Ok(got_point) => {
+                        let msg = if got_point != 0 {
                             format!(" 签到成功，获得 {} 点数", got_point)
                         } else {
                             " 今天已经签到过了，请明天再来".to_string()
@@ -92,7 +89,7 @@ pub fn signin_plugin() -> Plugin {
                 }
                 Ok(())
             })
-        }),
+        },
     );
 
     plugin
