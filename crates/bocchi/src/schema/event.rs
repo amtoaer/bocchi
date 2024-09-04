@@ -144,17 +144,19 @@ impl<'a> Event {
         }
     }
 
-    /// 消息内容迭代器，该方法会将消息内容转换为统一的 Vec<MessageSegment> 形式进行迭代
-    pub fn message_iter(&'a self) -> impl Iterator<Item = Cow<'a, MessageSegment>> {
-        let messages = match self.message() {
-            // 这里把传统的单条消息转换为 Vec<MessageSegment> 的形式，确保处理方式统一
-            MessageContent::Text(text) => vec![Cow::Owned(MessageSegment::Text {
-                text: text.to_owned(),
-            })],
-            MessageContent::Segment(segments) => {
-                segments.iter().map(|s| Cow::Borrowed(s)).collect()
-            }
-        };
-        return messages.into_iter();
+    /// 不带有 CQ 码的纯文本消息
+    pub fn plain_text(&'a self) -> Cow<'a, str> {
+        let msg = self.message();
+        match msg {
+            MessageContent::Text(text) => Cow::Borrowed(text),
+            MessageContent::Segment(segment) => segment
+                .iter()
+                .filter_map(|seg| match seg {
+                    MessageSegment::Text { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect::<String>()
+                .into(),
+        }
     }
 }

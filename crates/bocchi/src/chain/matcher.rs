@@ -26,7 +26,7 @@ impl Matcher {
         for rule in &self.condition {
             match rule {
                 Rule::OnText(handler) => {
-                    if !handler(event.raw_message()) {
+                    if !handler(&event.plain_text()) {
                         return false;
                     }
                 }
