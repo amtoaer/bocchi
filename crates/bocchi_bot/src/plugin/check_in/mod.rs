@@ -7,11 +7,11 @@ use rand::Rng;
 
 use crate::{migrate::database, model::points::v1::Point};
 
-pub fn signin_plugin() -> Plugin {
+pub fn check_in_plugin() -> Plugin {
     let mut plugin = Plugin::new();
 
     plugin.on(
-        Rule::on_message() & Rule::on_prefix("/signin"),
+        Rule::on_message() & Rule::on_prefix("/check in"),
         |caller, event| {
             Box::pin(async move {
                 let (user_id, nickname) = (event.user_id(), event.nickname());

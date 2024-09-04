@@ -1,7 +1,7 @@
+mod check_in;
 mod echo;
 mod gpt;
-mod signin;
 
+pub use check_in::check_in_plugin;
 pub use echo::echo_plugin;
 pub use gpt::gpt_plugin;
-pub use signin::signin_plugin;
