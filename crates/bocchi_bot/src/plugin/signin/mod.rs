@@ -12,7 +12,7 @@ pub fn signin_plugin() -> Plugin {
 
     plugin.on(
         Rule::on_message() & Rule::on_prefix("/signin"),
-        Box::new(|caller, event| {
+        |caller, event| {
             Box::pin(async move {
                 let (user_id, nickname) = (event.user_id(), event.nickname());
                 let res = tokio::task::spawn_blocking(move || {
@@ -92,7 +92,7 @@ pub fn signin_plugin() -> Plugin {
                 }
                 Ok(())
             })
-        }),
+        },
     );
 
     plugin

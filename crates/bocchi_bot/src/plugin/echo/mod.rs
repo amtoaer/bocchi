@@ -9,7 +9,7 @@ pub fn echo_plugin() -> Plugin {
 
     plugin.on(
         Rule::on_message() & Rule::on_prefix("/echo"),
-        Box::new(|caller, event| {
+        |caller, event| {
             Box::pin(async move {
                 let plain_text = event
                     .plain_text()
@@ -31,7 +31,7 @@ pub fn echo_plugin() -> Plugin {
                     .await?;
                 Ok(())
             })
-        }),
+        },
     );
 
     plugin
