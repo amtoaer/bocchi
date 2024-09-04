@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use serde::Deserialize;
 
-use crate::schema::MessageContent;
+use crate::schema::{MessageContent, MessageSegment};
 
 #[derive(Deserialize, Debug)]
 pub struct Sender {
@@ -82,7 +84,7 @@ pub enum Event {
     HeartBeat(HeartBeat),
 }
 
-impl Event {
+impl<'a> Event {
     pub fn sender(&self) -> &Sender {
         match self {
             Self::GroupMessage(GroupMessage { sender, .. })
@@ -133,11 +135,26 @@ impl Event {
         }
     }
 
+    /// 带有 CQ 码的原始消息
     pub fn raw_message(&self) -> &str {
         match self {
             Self::GroupMessage(GroupMessage { raw_message, .. })
             | Self::PrivateMessage(PrivateMessage { raw_message, .. }) => raw_message.trim(),
             _ => panic!("Event::raw_message() called on non-message event"),
         }
+    }
+
+    /// 消息内容迭代器，该方法会将消息内容转换为统一的 Vec<MessageSegment> 形式进行迭代
+    pub fn message_iter(&'a self) -> impl Iterator<Item = Cow<'a, MessageSegment>> {
+        let messages = match self.message() {
+            // 这里把传统的单条消息转换为 Vec<MessageSegment> 的形式，确保处理方式统一
+            MessageContent::Text(text) => vec![Cow::Owned(MessageSegment::Text {
+                text: text.to_owned(),
+            })],
+            MessageContent::Segment(segments) => {
+                segments.iter().map(|s| Cow::Borrowed(s)).collect()
+            }
+        };
+        return messages.into_iter();
     }
 }

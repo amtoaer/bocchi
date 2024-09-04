@@ -18,3 +18,4 @@ serde = { workspace = true }
 chrono = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
+markdown = { workspace = true }

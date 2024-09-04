@@ -4,13 +4,16 @@ extern crate tracing;
 mod migrate;
 mod model;
 mod plugin;
+mod utils;
+
+use std::borrow::Cow;
 
 use anyhow::Result;
 
 use bocchi::{
     bot::Bot,
     chain::Rule,
-    schema::{MessageContent, SendMsgParams},
+    schema::{MessageContent, MessageSegment, SendMsgParams},
 };
 
 #[tokio::main]
@@ -21,7 +24,12 @@ async fn main() -> Result<()> {
         Rule::on_message() & Rule::on_prefix("/echo"),
         Box::new(|caller, event| {
             Box::pin(async move {
-                let raw = event.raw_message();
+                let raw = raw
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<&str>>()
+                    .join("");
+                let raw = raw.as_str();
                 let msg = raw.strip_prefix("/echo").unwrap_or(raw).trim().to_owned();
                 if msg.is_empty() {
                     return Ok(());
