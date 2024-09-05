@@ -1,33 +1,76 @@
+//! 目前的 html 渲染图片依赖 gecko 驱动与 firefox 浏览器，请确保安装后再使用
+
+#![allow(unused)]
+
+use std::io::{self, BufRead};
+use std::process::{Child, Command};
+use std::sync::{LazyLock, OnceLock};
+
 use anyhow::Result;
 
+use crate::runtime::RUNTIME;
+
+const PORT: &str = "4444";
+const FIREFOX_BINARY: &str = "/usr/bin/firefox";
+const GECKO_DRIVER_BINARY: &str = "/usr/bin/geckodriver";
+
+static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
+    let mut gecko_driver_process = Command::new(GECKO_DRIVER_BINARY)
+        .args(["--port", PORT, "--binary", FIREFOX_BINARY])
+        .spawn()
+        .expect("启动 Gecko 驱动失败");
+    let output = gecko_driver_process.stdout.take();
+    match output {
+        None => panic!("获取 Gecko 输出失败"),
+        Some(stdout) => {
+            let reader = io::BufReader::new(stdout);
+            if reader.lines().any(|line| {
+                line.is_ok_and(|line| line.contains(&format!("Listening on 127.0.0.1:{:?}", PORT)))
+            }) {
+                return gecko_driver_process;
+            }
+            panic!("启动 Gecko 驱动失败");
+        }
+    }
+});
+
+static FANTOCCINI_CLIENT: OnceLock<fantoccini::Client> = OnceLock::new();
+
 pub fn markdown_to_html(markdown: &str) -> String {
-    // 可以使用 unwrap，因为 to_html_with_options 永远不会 Error
+    // 可以使用 unwrap，因为文档说 to_html_with_options 永远不会 Error
     markdown::to_html_with_options(markdown, &markdown::Options::gfm()).unwrap()
 }
 
 pub async fn html_to_image(html: &str) -> Result<Vec<u8>> {
-    let c = fantoccini::ClientBuilder::native()
-        .capabilities(serde_json::Map::from_iter(vec![(
-            "moz:firefoxOptions".to_string(),
-            serde_json::json!(
-                {
-                    "args": ["-headless", "--force-device-scale-factor=2.0"],
-                    "prefs": {
-                        "layout.css.devPixelsPerPx" : "2.5"
-                    },
-                }
-            ),
-        )]))
-        .connect("http://localhost:4444")
+    // client 构建必须要晚于 gecko 驱动的启动
+    LazyLock::force(&GECKO_DRIVER_COMMAND);
+    let browser = FANTOCCINI_CLIENT.get_or_init(|| {
+        RUNTIME.block_on(async {
+            fantoccini::ClientBuilder::native()
+                .capabilities(serde_json::Map::from_iter(vec![(
+                    "moz:firefoxOptions".to_string(),
+                    serde_json::json!(
+                        {
+                            "args": ["-headless", "-width=1440", "-height=900"],
+                            "prefs": {
+                                "layout.css.devPixelsPerPx" : "2.5"
+                            },
+                        }
+                    ),
+                )]))
+                .connect("http://localhost:4444")
+                .await
+                .expect("连接到 Gecko 驱动失败")
+        })
+    });
+    browser.goto("about:blank").await?;
+    browser
+        .execute(
+            "document.body.innerHTML = arguments[0];",
+            vec![serde_json::json!(html)],
+        )
         .await?;
-
-    c.goto("about:blank").await?;
-    c.execute(
-        "document.body.innerHTML = arguments[0];",
-        vec![serde_json::json!(html)],
-    )
-    .await?;
-    let screenshot = c.screenshot().await?;
+    let screenshot = browser.screenshot().await?;
     Ok(screenshot)
 }
 
@@ -37,6 +80,7 @@ mod tests {
 
     use super::*;
 
+    #[ignore = "only for debug"]
     #[tokio::test]
     async fn test_markdown_to_html() {
         let markdown = r#"
