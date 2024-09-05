@@ -5,10 +5,9 @@
 use std::io::{self, BufRead};
 use std::process::{Child, Command};
 use std::sync::{LazyLock, OnceLock};
+use tokio::sync::OnceCell;
 
 use anyhow::Result;
-
-use crate::runtime::RUNTIME;
 
 const PORT: &str = "4444";
 const FIREFOX_BINARY: &str = "/usr/bin/firefox";
@@ -17,16 +16,20 @@ const GECKO_DRIVER_BINARY: &str = "/usr/bin/geckodriver";
 static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
     let mut gecko_driver_process = Command::new(GECKO_DRIVER_BINARY)
         .args(["--port", PORT, "--binary", FIREFOX_BINARY])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .expect("启动 Gecko 驱动失败");
-    let output = gecko_driver_process.stdout.take();
-    match output {
+    match gecko_driver_process.stdout.take() {
         None => panic!("获取 Gecko 输出失败"),
         Some(stdout) => {
-            let reader = io::BufReader::new(stdout);
-            if reader.lines().any(|line| {
-                line.is_ok_and(|line| line.contains(&format!("Listening on 127.0.0.1:{:?}", PORT)))
-            }) {
+            let mut reader = io::BufReader::new(stdout);
+            let mut buf = String::new();
+            reader.read_line(&mut buf).expect("读取 Gecko 输出失败");
+            // 目前很简单，当输出中包含监听地址时，认为启动成功
+            if buf.contains(&format!("Listening on 127.0.0.1:{PORT}")) {
+                // 重要：必须将 stdout 重新放回 gecko_driver_process，否则后续日志找不到 pipe 输出，process 会中断
+                gecko_driver_process.stdout = Some(reader.into_inner());
                 return gecko_driver_process;
             }
             panic!("启动 Gecko 驱动失败");
@@ -34,7 +37,7 @@ static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
     }
 });
 
-static FANTOCCINI_CLIENT: OnceLock<fantoccini::Client> = OnceLock::new();
+static FANTOCCINI_CLIENT: OnceCell<fantoccini::Client> = OnceCell::const_new();
 
 pub fn markdown_to_html(markdown: &str) -> String {
     // 可以使用 unwrap，因为文档说 to_html_with_options 永远不会 Error
@@ -44,8 +47,8 @@ pub fn markdown_to_html(markdown: &str) -> String {
 pub async fn html_to_image(html: &str) -> Result<Vec<u8>> {
     // client 构建必须要晚于 gecko 驱动的启动
     LazyLock::force(&GECKO_DRIVER_COMMAND);
-    let browser = FANTOCCINI_CLIENT.get_or_init(|| {
-        RUNTIME.block_on(async {
+    let browser = FANTOCCINI_CLIENT
+        .get_or_init(|| async {
             fantoccini::ClientBuilder::native()
                 .capabilities(serde_json::Map::from_iter(vec![(
                     "moz:firefoxOptions".to_string(),
@@ -53,7 +56,7 @@ pub async fn html_to_image(html: &str) -> Result<Vec<u8>> {
                         {
                             "args": ["-headless", "-width=1440", "-height=900"],
                             "prefs": {
-                                "layout.css.devPixelsPerPx" : "2.5"
+                                "layout.css.devPixelsPerPx" : "2.5",
                             },
                         }
                     ),
@@ -62,7 +65,8 @@ pub async fn html_to_image(html: &str) -> Result<Vec<u8>> {
                 .await
                 .expect("连接到 Gecko 驱动失败")
         })
-    });
+        .await
+        .clone();
     browser.goto("about:blank").await?;
     browser
         .execute(
@@ -71,6 +75,7 @@ pub async fn html_to_image(html: &str) -> Result<Vec<u8>> {
         )
         .await?;
     let screenshot = browser.screenshot().await?;
+    browser.close().await?;
     Ok(screenshot)
 }
 
@@ -109,9 +114,7 @@ $$
 希望这些示例对你有帮助！
 "#;
         let html = markdown_to_html(markdown);
-
         let image = html_to_image(html.as_str()).await.unwrap();
-
         fs::write(Path::new("./test.png"), image).unwrap();
     }
 }
