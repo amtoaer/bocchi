@@ -9,38 +9,26 @@ use bocchi::{
 use serde_json::{json, Value};
 use std::{env, sync::LazyLock};
 
-const MAX_TOKENS: i32 = 1024;
-
-const CHAT_PROMPT: &str = "Chat with me!";
-const CODE_PROMPT: &str = "Code with me!";
+const MAX_TOKENS: i32 = 256;
 
 static DEEPSEEK_API_KEY: LazyLock<String> =
     LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
 
 pub fn gpt_plugin() -> Plugin {
     let mut plugin = Plugin::new();
-    for (command, prompt, model_name) in &[
-        ("#chat", CHAT_PROMPT, "deepseek-chat"),
-        ("#code", CODE_PROMPT, "deepseek-coder"),
-    ] {
+    for (command, model_name) in &[("#gpt", "deepseek-chat")] {
         plugin.on(
             Rule::on_group_message() & Rule::on_prefix(command),
-            |caller, event| {
-                Box::pin(call_deepseek_api(
-                    caller, event, command, prompt, model_name,
-                ))
-            },
+            |caller, event| Box::pin(call_deepseek_api(caller, event, command, model_name)),
         )
     }
     plugin
 }
 
-#[allow(unused)]
 async fn call_deepseek_api(
     caller: &dyn Caller,
     event: &Event,
     command: &'static str,
-    prompt: &'static str,
     model_name: &'static str,
 ) -> Result<()> {
     let text = event
