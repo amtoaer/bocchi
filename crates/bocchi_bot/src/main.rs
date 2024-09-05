@@ -19,5 +19,6 @@ async fn main() -> Result<()> {
     bot_instance.register_plugin(plugin::daily_bonus_plugin());
     bot_instance.register_plugin(plugin::echo_plugin());
     bot_instance.register_plugin(plugin::gpt_plugin());
+    bot_instance.register_plugin(plugin::repeat_plugin());
     bot_instance.start().await
 }
