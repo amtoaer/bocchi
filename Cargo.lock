@@ -134,6 +134,7 @@ dependencies = [
  "anyhow",
  "bocchi",
  "chrono",
+ "dashmap",
  "markdown",
  "native_db",
  "native_model",
