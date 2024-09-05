@@ -20,8 +20,8 @@ static DEEPSEEK_API_KEY: LazyLock<String> =
 pub fn gpt_plugin() -> Plugin {
     let mut plugin = Plugin::new();
     for (command, prompt, model_name) in &[
-        ("chat", CHAT_PROMPT, "deepseek-chat"),
-        ("code", CODE_PROMPT, "deepseek-coder"),
+        ("#chat", CHAT_PROMPT, "deepseek-chat"),
+        ("#code", CODE_PROMPT, "deepseek-coder"),
     ] {
         plugin.on(
             Rule::on_group_message() & Rule::on_prefix(command),
@@ -45,6 +45,7 @@ async fn call_deepseek_api(
 ) -> Result<()> {
     let text = event
         .plain_text()
+        .trim()
         .trim_start_matches(command)
         .trim()
         .to_owned();

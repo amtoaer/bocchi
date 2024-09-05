@@ -8,12 +8,13 @@ pub fn echo_plugin() -> Plugin {
     let mut plugin = Plugin::new();
 
     plugin.on(
-        Rule::on_message() & Rule::on_prefix("echo"),
+        Rule::on_message() & Rule::on_prefix("#echo"),
         |caller, event| {
             Box::pin(async move {
                 let plain_text = event
                     .plain_text()
-                    .trim_start_matches("echo")
+                    .trim()
+                    .trim_start_matches("#echo")
                     .trim()
                     .to_owned();
                 if !plain_text.is_empty() {
