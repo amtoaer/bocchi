@@ -22,3 +22,4 @@ markdown = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 dashmap = { workspace = true }
+fantoccini = { workspace = true }

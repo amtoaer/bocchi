@@ -42,3 +42,4 @@ native_model = "0.4.19"
 chrono = { version = "0.4.38", features = ["serde"] }
 markdown = "1.0.0-alpha.20"
 reqwest = { version = "0.12", features = ["json"] }
+fantoccini = { version = "0.21.2", features = ["rustls-tls"] }
