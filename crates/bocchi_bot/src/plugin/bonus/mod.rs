@@ -11,7 +11,7 @@ pub fn daily_bonus_plugin() -> Plugin {
     let mut plugin = Plugin::new();
 
     plugin.on(
-        Rule::on_message() & Rule::on_exact_match("daily bonus"),
+        Rule::on_message() & Rule::on_exact_match("#bonus"),
         |caller, event| {
             Box::pin(async move {
                 let (user_id, nickname) = (event.user_id(), event.nickname());
