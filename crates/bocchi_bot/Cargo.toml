@@ -18,8 +18,9 @@ serde = { workspace = true }
 chrono = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
-markdown = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 dashmap = { workspace = true }
 fantoccini = { workspace = true }
+async-tempfile = { workspace = true }
+pulldown-cmark = { workspace = true }

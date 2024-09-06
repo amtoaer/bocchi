@@ -1,5 +1,6 @@
 use crate::utils::HTTP_CLIENT;
 use anyhow::{Error, Result};
+use async_tempfile::TempFile;
 use bocchi::{
     adapter::Caller,
     chain::Rule,
@@ -8,18 +9,29 @@ use bocchi::{
 };
 use serde_json::{json, Value};
 use std::{env, sync::LazyLock};
-
-const MAX_TOKENS: i32 = 256;
+use tokio::io::AsyncWriteExt;
+mod markdown;
 
 static DEEPSEEK_API_KEY: LazyLock<String> =
     LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
 
 pub fn gpt_plugin() -> Plugin {
     let mut plugin = Plugin::new();
-    for (command, model_name) in &[("#gpt", "deepseek-chat")] {
+    for (command, max_tokens, reply_image) in [
+        ("#gpt", Some(512), false), // gpt 使用文本输出，需要文本内容较短
+        ("#igpt", None, true),      // igpt 使用图片输出，不需要限制 token
+    ] {
         plugin.on(
             Rule::on_group_message() & Rule::on_prefix(command),
-            |caller, event| Box::pin(call_deepseek_api(caller, event, command, model_name)),
+            move |caller, event| {
+                Box::pin(call_deepseek_api(
+                    caller,
+                    event,
+                    command,
+                    max_tokens,
+                    reply_image,
+                ))
+            },
         )
     }
     plugin
@@ -29,7 +41,8 @@ async fn call_deepseek_api(
     caller: &dyn Caller,
     event: &Event,
     command: &'static str,
-    model_name: &'static str,
+    max_tokens: Option<i32>,
+    reply_image: bool,
 ) -> Result<()> {
     let text = event
         .plain_text()
@@ -43,22 +56,24 @@ async fn call_deepseek_api(
     caller
         .set_msg_emoji_like(SetMsgEmojiLikeParams {
             message_id: event.message_id(),
-            emoji_id: Emoji::闪光_2.id(),
+            emoji_id: Emoji::敬礼_1.id(),
         })
         .await?;
     let resp_text = async {
+        let mut body = json!({
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "user", "content": text}
+            ],
+            "stream": false
+        });
+        if let Some(max_tokens) = max_tokens {
+            body["max_tokens"] = json!(max_tokens);
+        }
         let resp = HTTP_CLIENT
             .post("https://api.deepseek.com/chat/completions")
             .bearer_auth(DEEPSEEK_API_KEY.as_str())
-            .json(&json!({
-                "model": model_name,
-                "messages": [
-                    // {"role": "system", "content":prompt},
-                    {"role": "user", "content": text}
-                ],
-                "max_tokens": MAX_TOKENS,
-                "stream": false
-            }))
+            .json(&body)
             .send()
             .await?
             .error_for_status()?
@@ -73,10 +88,27 @@ async fn call_deepseek_api(
     let (text, emoji, res) = match resp_text {
         Err(e) => (
             "获取大模型回复失败，请稍后重试".to_string(),
-            Emoji::大哭_2,
+            Emoji::泪奔_1,
             Err(e),
         ),
-        Ok(resp_text) => (resp_text, Emoji::庆祝_2, Ok(())),
+        Ok(resp_text) => (resp_text, Emoji::庆祝_1, Ok(())),
+    };
+    let mut tempfile = TempFile::new().await?;
+    let message = if reply_image {
+        tempfile
+            .write_all(&markdown::markdown_to_image(text).await?)
+            .await?;
+        tempfile.flush().await?;
+        MessageSegment::Image {
+            file: format!("file://{}", tempfile.file_path().to_string_lossy()),
+            r#type: None,
+            url: None,
+            cache: Some(true),
+            proxy: None,
+            timeout: None,
+        }
+    } else {
+        MessageSegment::Text { text }
     };
     caller
         .set_msg_emoji_like(SetMsgEmojiLikeParams {
@@ -93,10 +125,11 @@ async fn call_deepseek_api(
                 MessageSegment::Reply {
                     id: event.message_id().to_string(),
                 },
-                MessageSegment::Text { text },
+                message,
             ]),
             auto_escape: true,
         })
         .await?;
+    assert!(tempfile.file_path().is_file());
     res
 }
