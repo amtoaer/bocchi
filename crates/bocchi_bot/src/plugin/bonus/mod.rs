@@ -7,7 +7,7 @@ use rand::Rng;
 
 use crate::{migrate::database, model::points::v1::Point};
 
-pub fn daily_bonus_plugin() -> Plugin {
+pub fn bonus_plugin() -> Plugin {
     let mut plugin = Plugin::new();
 
     plugin.on(
@@ -45,49 +45,32 @@ pub fn daily_bonus_plugin() -> Plugin {
                     Ok::<_, anyhow::Error>(got_point)
                 })
                 .await?;
-                match res {
-                    Err(e) => {
-                        error!("daily_bonus error: {:?}", e);
-                        caller
-                            .send_msg(SendMsgParams {
-                                user_id: Some(user_id),
-                                group_id: event.group_id(),
-                                message: MessageContent::Segment(vec![
-                                    MessageSegment::At {
-                                        qq: user_id.to_string(),
-                                    },
-                                    MessageSegment::Text {
-                                        text: " 签到失败，请重试".to_string(),
-                                    },
-                                ]),
-                                auto_escape: true,
-                                message_type: None,
-                            })
-                            .await?;
-                    }
+                let (msg, ret) = match res {
+                    Err(e) => (" 签到失败，请重试".to_string(), Err(e)),
                     Ok(got_point) => {
                         let msg = if got_point != 0 {
                             format!(" 签到成功，获得 {} 点数", got_point)
                         } else {
                             " 今天已经签到过了，请明天再来".to_string()
                         };
-                        caller
-                            .send_msg(SendMsgParams {
-                                user_id: Some(user_id),
-                                group_id: event.group_id(),
-                                message: MessageContent::Segment(vec![
-                                    MessageSegment::At {
-                                        qq: user_id.to_string(),
-                                    },
-                                    MessageSegment::Text { text: msg },
-                                ]),
-                                auto_escape: true,
-                                message_type: None,
-                            })
-                            .await?;
+                        (msg, Ok(()))
                     }
-                }
-                Ok(())
+                };
+                caller
+                    .send_msg(SendMsgParams {
+                        user_id: Some(user_id),
+                        group_id: event.group_id(),
+                        message: MessageContent::Segment(vec![
+                            MessageSegment::At {
+                                qq: user_id.to_string(),
+                            },
+                            MessageSegment::Text { text: msg },
+                        ]),
+                        auto_escape: true,
+                        message_type: None,
+                    })
+                    .await?;
+                ret
             })
         },
     );
