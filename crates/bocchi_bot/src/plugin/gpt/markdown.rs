@@ -1,14 +1,16 @@
 //! 目前的 html 渲染图片依赖运行在本机的 gecko 驱动与 firefox 浏览器，请确保安装后再使用
 //! gecko 驱动与浏览器会由程序自动启动，只需要提前安装好并指定路径即可
+use std::{
+    io::{self, BufRead},
+    process::{Child, Command},
+    sync::LazyLock,
+};
+
 use aho_corasick::AhoCorasick;
 use anyhow::Result;
 use async_tempfile::TempFile;
 use fantoccini::Locator;
-use std::io::{self, BufRead};
-use std::process::{Child, Command};
-use std::sync::LazyLock;
-use tokio::io::AsyncWriteExt;
-use tokio::sync::OnceCell;
+use tokio::{io::AsyncWriteExt, sync::OnceCell};
 
 const PORT: &str = "4444";
 const FIREFOX_BINARY: &str = "/usr/bin/firefox";
@@ -41,8 +43,7 @@ static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
 
 static FANTOCCINI_CLIENT: OnceCell<fantoccini::Client> = OnceCell::const_new();
 
-static AHO_CORASICK: LazyLock<AhoCorasick> =
-    LazyLock::new(|| AhoCorasick::new([r"\[", r"\]", r"\(", r"\)"]).unwrap());
+static AHO_CORASICK: LazyLock<AhoCorasick> = LazyLock::new(|| AhoCorasick::new([r"\[", r"\]", r"\(", r"\)"]).unwrap());
 
 pub async fn markdown_to_image(markdown: String) -> Result<Vec<u8>> {
     let html = markdown_to_html(markdown).await?;
@@ -88,15 +89,9 @@ async fn html_to_image(html: &str) -> Result<Vec<u8>> {
     tempfile.write_all(render(html).as_bytes()).await?;
     tempfile.flush().await?;
     browser
-        .goto(&format!(
-            "file://{}",
-            tempfile.file_path().to_string_lossy()
-        ))
+        .goto(&format!("file://{}", tempfile.file_path().to_string_lossy()))
         .await?;
-    let article = browser
-        .wait()
-        .for_element(Locator::Css(".markdown-body"))
-        .await?;
+    let article = browser.wait().for_element(Locator::Css(".markdown-body")).await?;
     let screenshot = article.screenshot().await?;
     Ok(screenshot)
 }

@@ -1,7 +1,7 @@
+use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::message::MessageContent;
-use enum_as_inner::EnumAsInner;
 /// 发送私聊消息的参数
 #[derive(Debug, Serialize)]
 pub struct SendPrivateMsgParams {
@@ -168,12 +168,11 @@ mod tests {
 
     #[test]
     fn test_api_serialize() {
-        let send_private_msg =
-            ApiRequest::new(RequestParams::SendPrivateMsg(SendPrivateMsgParams {
-                user_id: 10000,
-                message: MessageContent::Text("Hello, world!".to_string()),
-                auto_escape: true,
-            }));
+        let send_private_msg = ApiRequest::new(RequestParams::SendPrivateMsg(SendPrivateMsgParams {
+            user_id: 10000,
+            message: MessageContent::Text("Hello, world!".to_string()),
+            auto_escape: true,
+        }));
         assert_eq!(
             serde_json::to_string(&send_private_msg).unwrap(),
             r#"{"action":"send_private_msg","params":{"user_id":10000,"message":"Hello, world!","auto_escape":false}}"#

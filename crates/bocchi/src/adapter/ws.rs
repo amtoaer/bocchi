@@ -1,11 +1,5 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::{
-    adapter::{error::ConnectError, Adapter, Caller, Connector, Status},
-    caller::*,
-    chain::MatchUnion,
-    schema::*,
-};
 use anyhow::Result;
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -14,10 +8,15 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 use http::Uri;
-use tokio::net::TcpStream;
-use tokio::sync::oneshot::Sender;
-use tokio::time;
+use tokio::{net::TcpStream, sync::oneshot::Sender, time};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
+
+use crate::{
+    adapter::{error::ConnectError, Adapter, Caller, Connector, Status},
+    caller::*,
+    chain::MatchUnion,
+    schema::*,
+};
 
 #[derive(Debug)]
 pub struct WsAdapter {
@@ -48,9 +47,7 @@ impl WsAdapter {
 #[async_trait]
 impl Connector for WsAdapter {
     async fn spawn(mut self: Box<Self>, match_unions: Vec<MatchUnion>) {
-        if let (Some(mut ws_sink), Some(mut ws_stream)) =
-            (self.ws_sink.take(), self.ws_stream.take())
-        {
+        if let (Some(mut ws_sink), Some(mut ws_stream)) = (self.ws_sink.take(), self.ws_stream.take()) {
             let _ = self.status_tx.send(Status::Connected);
             let (mut status_rx, status_tx) = (self.status_rx.clone(), self.status_tx.clone());
             let (request_tx, mut request_rx) = tokio::sync::mpsc::channel(32);
@@ -73,7 +70,8 @@ impl Connector for WsAdapter {
                     }
                     // magic from https://rust-lang.github.io/async-book/07_workarounds/02_err_in_async_blocks.html
                     Ok::<_, anyhow::Error>(())
-                }.await;
+                }
+                .await;
                 let _ = status_tx.send(Status::Disconnected(e.err()));
             });
             let request_recorder = self.request_recorder.clone();
@@ -143,10 +141,9 @@ impl Caller for WsAdapter {
         {
             let status = &*self.status_rx.borrow();
             if matches!(status, Status::NotConnected | Status::Disconnected(_)) {
-                return Err(ConnectError::StatusError(format!(
-                    "Invalid status, expect Connected, actual {status:?}"
-                ))
-                .into());
+                return Err(
+                    ConnectError::StatusError(format!("Invalid status, expect Connected, actual {status:?}")).into(),
+                );
             }
         }
         let (tx, rx) = tokio::sync::oneshot::channel::<ApiResponse>();

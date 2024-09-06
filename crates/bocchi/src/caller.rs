@@ -1,5 +1,6 @@
-use crate::{adapter::Caller, error::ApiError, schema::*};
 use anyhow::Result;
+
+use crate::{adapter::Caller, error::ApiError, schema::*};
 
 pub async fn get_login_info(connector: &dyn Caller) -> Result<GetLoginInfoResult> {
     connector
@@ -10,10 +11,7 @@ pub async fn get_login_info(connector: &dyn Caller) -> Result<GetLoginInfoResult
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 
-pub async fn send_private_msg(
-    connector: &dyn Caller,
-    param: SendPrivateMsgParams,
-) -> Result<SendMsgResult> {
+pub async fn send_private_msg(connector: &dyn Caller, param: SendPrivateMsgParams) -> Result<SendMsgResult> {
     connector
         .call(ApiRequest::new(RequestParams::SendPrivateMsg(param)))
         .await?
@@ -22,10 +20,7 @@ pub async fn send_private_msg(
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 
-pub async fn send_group_msg(
-    connector: &dyn Caller,
-    param: SendGroupMsgParams,
-) -> Result<SendMsgResult> {
+pub async fn send_group_msg(connector: &dyn Caller, param: SendGroupMsgParams) -> Result<SendMsgResult> {
     connector
         .call(ApiRequest::new(RequestParams::SendGroupMsg(param)))
         .await?
@@ -43,10 +38,7 @@ pub async fn send_msg(connector: &dyn Caller, param: SendMsgParams) -> Result<Se
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 
-pub async fn delete_msg(
-    connector: &dyn Caller,
-    param: DeleteMsgParams,
-) -> Result<serde_json::Value> {
+pub async fn delete_msg(connector: &dyn Caller, param: DeleteMsgParams) -> Result<serde_json::Value> {
     connector
         .call(ApiRequest::new(RequestParams::DeleteMsg(param)))
         .await?
@@ -64,10 +56,7 @@ pub async fn get_msg(connector: &dyn Caller, param: GetMsgParams) -> Result<GetM
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 
-pub async fn get_forward_msg(
-    connector: &dyn Caller,
-    param: GetForwardMsgParams,
-) -> Result<GetForwardMsgResult> {
+pub async fn get_forward_msg(connector: &dyn Caller, param: GetForwardMsgParams) -> Result<GetForwardMsgResult> {
     connector
         .call(ApiRequest::new(RequestParams::GetForwardMsg(param)))
         .await?
@@ -77,10 +66,7 @@ pub async fn get_forward_msg(
 }
 
 #[cfg(feature = "napcat")]
-pub async fn set_msg_emoji_like(
-    connector: &dyn Caller,
-    param: SetMsgEmojiLikeParams,
-) -> Result<serde_json::Value> {
+pub async fn set_msg_emoji_like(connector: &dyn Caller, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value> {
     connector
         .call(ApiRequest::new(RequestParams::SetMsgEmojiLike(param)))
         .await?

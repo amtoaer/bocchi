@@ -1,6 +1,6 @@
+use std::{future::Future, pin::Pin};
+
 use anyhow::{bail, Result};
-use std::future::Future;
-use std::pin::Pin;
 
 use crate::{
     adapter::{self, Adapter, Caller},
@@ -25,10 +25,7 @@ impl Bot {
     pub fn on<M, H>(&mut self, matcher: M, handler: H)
     where
         M: Into<Matcher>,
-        H: for<'a> Fn(
-                &'a dyn Caller,
-                &'a Event,
-            ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>
+        H: for<'a> Fn(&'a dyn Caller, &'a Event) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>
             + Send
             + Sync
             + 'static,

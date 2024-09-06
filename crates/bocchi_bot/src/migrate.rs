@@ -1,8 +1,8 @@
 use std::sync::{LazyLock, OnceLock};
 
-use crate::model;
-
 use native_db::{Builder, Database, Models};
+
+use crate::model;
 
 static MODELS: LazyLock<Models> = LazyLock::new(|| {
     let mut models = Models::new();

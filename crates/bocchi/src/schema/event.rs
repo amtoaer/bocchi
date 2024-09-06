@@ -87,32 +87,34 @@ pub enum Event {
 impl<'a> Event {
     pub fn sender(&self) -> &Sender {
         match self {
-            Self::GroupMessage(GroupMessage { sender, .. })
-            | Self::PrivateMessage(PrivateMessage { sender, .. }) => sender,
+            Self::GroupMessage(GroupMessage { sender, .. }) | Self::PrivateMessage(PrivateMessage { sender, .. }) => {
+                sender
+            }
             _ => panic!("Event::sender() called on non-message event"),
         }
     }
 
     pub fn message(&self) -> &MessageContent {
         match self {
-            Self::GroupMessage(GroupMessage { message, .. })
-            | Self::PrivateMessage(PrivateMessage { message, .. }) => message,
+            Self::GroupMessage(GroupMessage { message, .. }) | Self::PrivateMessage(PrivateMessage { message, .. }) => {
+                message
+            }
             _ => panic!("Event::message() called on non-message event"),
         }
     }
 
     pub fn user_id(&self) -> u64 {
         match self {
-            Self::GroupMessage(GroupMessage { user_id, .. })
-            | Self::PrivateMessage(PrivateMessage { user_id, .. }) => *user_id,
+            Self::GroupMessage(GroupMessage { user_id, .. }) | Self::PrivateMessage(PrivateMessage { user_id, .. }) => {
+                *user_id
+            }
             _ => panic!("Event::user_id() called on non-message event"),
         }
     }
 
     pub fn nickname(&self) -> String {
         match self {
-            Self::GroupMessage(GroupMessage { sender, .. })
-            | Self::PrivateMessage(PrivateMessage { sender, .. }) => {
+            Self::GroupMessage(GroupMessage { sender, .. }) | Self::PrivateMessage(PrivateMessage { sender, .. }) => {
                 sender.nickname.clone().unwrap_or_default()
             }
             _ => panic!("Event::nickname() called on non-message event"),

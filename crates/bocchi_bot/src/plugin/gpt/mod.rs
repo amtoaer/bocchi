@@ -1,4 +1,5 @@
-use crate::utils::HTTP_CLIENT;
+use std::{env, sync::LazyLock};
+
 use anyhow::{Error, Result};
 use async_tempfile::TempFile;
 use bocchi::{
@@ -8,12 +9,12 @@ use bocchi::{
     schema::{Emoji, Event, MessageContent, MessageSegment, SendMsgParams, SetMsgEmojiLikeParams},
 };
 use serde_json::{json, Value};
-use std::{env, sync::LazyLock};
 use tokio::io::AsyncWriteExt;
+
+use crate::utils::HTTP_CLIENT;
 mod markdown;
 
-static DEEPSEEK_API_KEY: LazyLock<String> =
-    LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
+static DEEPSEEK_API_KEY: LazyLock<String> = LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
 
 pub fn gpt_plugin() -> Plugin {
     let mut plugin = Plugin::new();
@@ -23,15 +24,7 @@ pub fn gpt_plugin() -> Plugin {
     ] {
         plugin.on(
             Rule::on_group_message() & Rule::on_prefix(command),
-            move |caller, event| {
-                Box::pin(call_deepseek_api(
-                    caller,
-                    event,
-                    command,
-                    max_tokens,
-                    reply_image,
-                ))
-            },
+            move |caller, event| Box::pin(call_deepseek_api(caller, event, command, max_tokens, reply_image)),
         )
     }
     plugin
@@ -44,12 +37,7 @@ async fn call_deepseek_api(
     max_tokens: Option<i32>,
     reply_image: bool,
 ) -> Result<()> {
-    let text = event
-        .plain_text()
-        .trim()
-        .trim_start_matches(command)
-        .trim()
-        .to_owned();
+    let text = event.plain_text().trim().trim_start_matches(command).trim().to_owned();
     if text.is_empty() {
         return Ok(());
     }
@@ -86,18 +74,12 @@ async fn call_deepseek_api(
     }
     .await;
     let (text, emoji, res) = match resp_text {
-        Err(e) => (
-            "获取大模型回复失败，请稍后重试".to_string(),
-            Emoji::泪奔_1,
-            Err(e),
-        ),
+        Err(e) => ("获取大模型回复失败，请稍后重试".to_string(), Emoji::泪奔_1, Err(e)),
         Ok(resp_text) => (resp_text, Emoji::庆祝_1, Ok(())),
     };
     let mut tempfile = TempFile::new().await?;
     let message = if reply_image {
-        tempfile
-            .write_all(&markdown::markdown_to_image(text).await?)
-            .await?;
+        tempfile.write_all(&markdown::markdown_to_image(text).await?).await?;
         tempfile.flush().await?;
         MessageSegment::Image {
             /*
