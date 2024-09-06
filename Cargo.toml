@@ -40,5 +40,8 @@ tracing-subscriber = "0.3"
 native_db = "0.7.1"
 native_model = "0.4.19"
 chrono = { version = "0.4.38", features = ["serde"] }
-markdown = "1.0.0-alpha.20"
 reqwest = { version = "0.12", features = ["json"] }
+fantoccini = { version = "0.21.2", features = ["rustls-tls"] }
+async-tempfile = "0.6.0"
+pulldown-cmark = "0.12.1"
+aho-corasick = "1.1.3"

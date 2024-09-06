@@ -12,7 +12,6 @@ pub enum Status {
     #[default]
     NotConnected,
     Connected,
-    #[allow(dead_code)]
     Disconnected(Option<Error>),
 }
 

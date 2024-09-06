@@ -9,7 +9,6 @@ mod plugin;
 mod utils;
 
 use anyhow::Result;
-
 use bocchi::bot::Bot;
 
 #[tokio::main]
