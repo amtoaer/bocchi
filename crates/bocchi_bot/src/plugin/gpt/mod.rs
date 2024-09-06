@@ -100,6 +100,10 @@ async fn call_deepseek_api(
             .await?;
         tempfile.flush().await?;
         MessageSegment::Image {
+            /*
+            当前使用 /tmp 中转来进行 bot 与 onebot server 的文件传输，这要求 bot 与 onebot server 在同一台机器上，
+            且如果有容器等隔离环境，需要保证 /tmp 是共享的。更通用的做法是引入 base64 crates 通过 base64 传递图片。
+            */
             file: format!("file://{}", tempfile.file_path().to_string_lossy()),
             r#type: None,
             url: None,

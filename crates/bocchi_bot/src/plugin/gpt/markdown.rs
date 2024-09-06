@@ -1,4 +1,7 @@
-//! 目前的 html 渲染图片依赖 gecko 驱动与 firefox 浏览器，请确保安装后再使用
+//! 目前的 html 渲染图片依赖运行在本机的 gecko 驱动与 firefox 浏览器，请确保安装后再使用
+//! gecko 驱动与浏览器会由程序自动启动，只需要提前安装好并指定路径即可
+use aho_corasick::AhoCorasick;
+use anyhow::Result;
 use async_tempfile::TempFile;
 use fantoccini::Locator;
 use std::io::{self, BufRead};
@@ -6,8 +9,6 @@ use std::process::{Child, Command};
 use std::sync::LazyLock;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::OnceCell;
-
-use anyhow::Result;
 
 const PORT: &str = "4444";
 const FIREFOX_BINARY: &str = "/usr/bin/firefox";
@@ -40,6 +41,9 @@ static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
 
 static FANTOCCINI_CLIENT: OnceCell<fantoccini::Client> = OnceCell::const_new();
 
+static AHO_CORASICK: LazyLock<AhoCorasick> =
+    LazyLock::new(|| AhoCorasick::new([r"\[", r"\]", r"\(", r"\)"]).unwrap());
+
 pub async fn markdown_to_image(markdown: String) -> Result<Vec<u8>> {
     let html = markdown_to_html(markdown).await?;
     html_to_image(&html).await
@@ -47,8 +51,8 @@ pub async fn markdown_to_image(markdown: String) -> Result<Vec<u8>> {
 
 async fn markdown_to_html(markdown: String) -> Result<String> {
     Ok(tokio::task::spawn_blocking(move || {
-        // GPT 输出的 Katex 会出现在普通文本中，导致 pulldown_cmark 无法解析，这里先将 Katex 需要的标识字符替换，确保最终标识字符不会被解析
-        let markdown = markdown.replace("\\", "\\\\");
+        // 将 \[、\] 替换为 $$，\(、\) 替换为 $，这是 Katex 的默认兼容写法，与 pulldown_cmark 也不会有冲突。
+        let markdown = AHO_CORASICK.replace_all(&markdown, &["$$", "$$", "$", "$"]);
         let parser = pulldown_cmark::Parser::new(&markdown);
         let mut html = String::new();
         pulldown_cmark::html::push_html(&mut html, parser);
@@ -97,20 +101,28 @@ async fn html_to_image(html: &str) -> Result<Vec<u8>> {
     Ok(screenshot)
 }
 
-fn render(text: &str) -> String {
+fn render(html: &str) -> String {
     format!(
         r#"
 <!DOCTYPE html>
-
 <html>
 
 <head>
-    <title>Test</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.6.1/github-markdown.min.css">
     <style>
+        .markdown-body {{
+            --fontStack-monospace: JetBrains Mono, ui-monospace,
+                SFMono-Regular,
+                SF Mono,
+                Menlo,
+                Consolas,
+                Liberation Mono,
+                monospace !important;
+    }}
+
         .markdown-body {{
             box-sizing: border-box;
             min-width: 200px;
@@ -142,18 +154,17 @@ fn render(text: &str) -> String {
         onload="renderMathInElement(document.body, {{
             delimiters: [
                 {{ left: '$$', right: '$$', display: true }},
-                {{ left: '\\[', right: '\\]', display: true }},
                 {{ left: '$', right: '$', display: false }},
-                {{ left: '\\(', right: '\\)', display: false }}
             ]
         }});"></script>
 </head>
 
 <body class="markdown-body">
-    {text}
+{}
 </body>
 
 </html>
-"#
+"#,
+        html
     )
 }

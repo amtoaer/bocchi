@@ -24,3 +24,4 @@ dashmap = { workspace = true }
 fantoccini = { workspace = true }
 async-tempfile = { workspace = true }
 pulldown-cmark = { workspace = true }
+aho-corasick = { workspace = true }

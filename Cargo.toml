@@ -44,3 +44,4 @@ reqwest = { version = "0.12", features = ["json"] }
 fantoccini = { version = "0.21.2", features = ["rustls-tls"] }
 async-tempfile = "0.6.0"
 pulldown-cmark = "0.12.1"
+aho-corasick = "1.1.3"
