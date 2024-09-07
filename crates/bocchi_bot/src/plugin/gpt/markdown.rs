@@ -1,60 +1,53 @@
 //! 目前的 html 渲染图片依赖运行在本机的 gecko 驱动与 firefox 浏览器，请确保安装后再使用
 //! gecko 驱动与浏览器会由程序自动启动，只需要提前安装好并指定路径即可
-use std::{
-    io::{self, BufRead},
-    process::{Child, Command},
-    sync::LazyLock,
-};
+use std::sync::LazyLock;
 
 use aho_corasick::AhoCorasick;
 use anyhow::Result;
 use async_tempfile::TempFile;
 use fantoccini::Locator;
-use tokio::{io::AsyncWriteExt, sync::OnceCell};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    process::Command,
+    sync::OnceCell,
+};
 
 const PORT: &str = "4444";
 const FIREFOX_BINARY: &str = "/usr/bin/firefox";
 const GECKO_DRIVER_BINARY: &str = "/usr/bin/geckodriver";
 
-// Rust 的子进程没有实现 Drop，这里手动实现一下，确保自动退出
-struct ChildGuard(Child);
+static GECKO_DRIVER_INITED: OnceCell<()> = OnceCell::const_new();
+static FANTOCCINI_CLIENT: OnceCell<fantoccini::Client> = OnceCell::const_new();
+static AHO_CORASICK: LazyLock<AhoCorasick> = LazyLock::new(|| AhoCorasick::new([r"\[", r"\]", r"\(", r"\)"]).unwrap());
 
-impl Drop for ChildGuard {
-    fn drop(&mut self) {
-        self.0.kill().ok();
-    }
-}
-
-static GECKO_DRIVER_COMMAND: LazyLock<ChildGuard> = LazyLock::new(|| {
-    let mut gecko_driver_process = ChildGuard(
-        Command::new(GECKO_DRIVER_BINARY)
-            .args(["--port", PORT, "--binary", FIREFOX_BINARY])
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .expect("启动 Gecko 驱动失败"),
-    );
-    match gecko_driver_process.0.stdout.take() {
+async fn run_gecko_driver() {
+    let mut gecko_driver_process = Command::new(GECKO_DRIVER_BINARY)
+        .args(["--port", PORT, "--binary", FIREFOX_BINARY])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .expect("启动 Gecko 驱动失败");
+    match gecko_driver_process.stdout.take() {
         None => panic!("获取 Gecko 输出失败"),
         Some(stdout) => {
-            let mut reader = io::BufReader::new(stdout);
+            let mut reader = BufReader::new(stdout);
             let mut buf = String::new();
-            reader.read_line(&mut buf).expect("读取 Gecko 输出失败");
+            reader.read_line(&mut buf).await.expect("读取 Gecko 输出失败");
             // 目前很简单，当输出中包含监听地址时，认为启动成功
-            if buf.contains(&format!("Listening on 127.0.0.1:{PORT}")) {
-                // 重要：必须将 stdout 重新放回 gecko_driver_process，否则后续日志找不到 pipe 输出，process 会中断
-                gecko_driver_process.0.stdout = Some(reader.into_inner());
-                return gecko_driver_process;
+            if !buf.contains(&format!("Listening on 127.0.0.1:{PORT}")) {
+                panic!("启动 Gecko 驱动失败");
             }
-            panic!("启动 Gecko 驱动失败");
+            // 重要：必须将 stdout 重新放回 gecko_driver_process，否则后续日志找不到 pipe 输出，process 会中断
+            gecko_driver_process.stdout = Some(reader.into_inner());
+            // 阻塞等待 gecko_driver 退出
+            tokio::spawn(async move {
+                gecko_driver_process.wait().await.expect("Gecko 驱动异常退出");
+            });
         }
     }
-});
-
-static FANTOCCINI_CLIENT: OnceCell<fantoccini::Client> = OnceCell::const_new();
-
-static AHO_CORASICK: LazyLock<AhoCorasick> = LazyLock::new(|| AhoCorasick::new([r"\[", r"\]", r"\(", r"\)"]).unwrap());
+}
 
 pub async fn markdown_to_image(markdown: String) -> Result<Vec<u8>> {
     let html = markdown_to_html(markdown).await?;
@@ -74,7 +67,7 @@ async fn markdown_to_html(markdown: String) -> Result<String> {
 }
 
 async fn html_to_image(html: &str) -> Result<Vec<u8>> {
-    tokio::task::spawn_blocking(|| LazyLock::force(&GECKO_DRIVER_COMMAND)).await?;
+    GECKO_DRIVER_INITED.get_or_init(run_gecko_driver).await;
     // client 构建必须要晚于 gecko 驱动的启动
     let browser = FANTOCCINI_CLIENT
         .get_or_init(|| async {
