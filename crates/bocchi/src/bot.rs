@@ -1,53 +1,85 @@
-use std::{future::Future, pin::Pin};
+use std::{borrow::Cow, future::Future, pin::Pin};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use crate::{
-    adapter::{self, Adapter, Caller},
-    chain::{MatchUnion, Matcher},
+    adapter::{self, Adapter},
+    chain::{Context, Matcher, Rule},
     plugin::Plugin,
-    schema::Event,
+    schema::{MessageContent, SendMsgParams},
 };
 
 pub struct Bot {
-    adapter: Option<Box<dyn Adapter>>,
-    match_unions: Vec<MatchUnion>,
+    adapter: Box<dyn Adapter>,
+    plugins: Vec<Plugin>,
 }
 
 impl Bot {
     pub async fn connect(address: &str) -> Result<Self> {
         Ok(Bot {
-            adapter: Some(adapter::WsAdapter::connect(address).await?),
-            match_unions: Vec::new(),
+            adapter: adapter::WsAdapter::connect(address).await?,
+            plugins: vec![Plugin::new("内建插件", "直接注册在 Bot 上的插件")],
         })
     }
 
-    pub fn on<M, H>(&mut self, matcher: M, handler: H)
+    pub fn on<D, M, H>(&mut self, description: D, matcher: M, handler: H)
     where
+        D: Into<Cow<'static, str>>,
         M: Into<Matcher>,
-        H: for<'a> Fn(&'a dyn Caller, &'a Event) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>
-            + Send
-            + Sync
-            + 'static,
+        H: for<'a> Fn(Context<'a>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send + 'a>> + Send + Sync + 'static,
     {
-        self.match_unions
-            .push(MatchUnion::new(matcher.into(), Box::new(handler)));
+        self.plugins[0].on(description, matcher, handler);
     }
 
     pub fn register_plugin(&mut self, plugin: Plugin) {
-        self.match_unions.extend(plugin.into_inner());
+        self.plugins.push(plugin);
     }
 
-    pub async fn start(&mut self) -> Result<()> {
-        if self.adapter.is_none() {
-            bail!("bot already started!");
-        }
-        // 已经断言过，这里 unwrap 是安全的
-        let connector = self.adapter.take().unwrap();
-        let mut match_unions = std::mem::take(&mut self.match_unions);
-        match_unions.sort_by_key(|u| u.matcher.priority);
-        connector.spawn(match_unions).await;
+    pub async fn start(self) -> Result<()> {
+        self.adapter.spawn(self.plugins).await;
         info!("bot started!");
         Ok(tokio::signal::ctrl_c().await?)
+    }
+
+    pub fn use_build_in_handler(&mut self) {
+        self.on(
+            "显示帮助信息",
+            Rule::on_message() & Rule::on_exact_match("#help"),
+            |ctx| {
+                Box::pin(async move {
+                    let mut help_message =
+                        String::from("由 Rust 与 Tokio 驱动的机器人波奇酱！目前由如下插件提供服务：\n");
+                    let mut tab_str = 2;
+                    for plugin in ctx.plugins {
+                        help_message.push_str(&format!(
+                            "\n{}{} - {}\n",
+                            " ".repeat(tab_str),
+                            plugin.name,
+                            plugin.description
+                        ));
+                        tab_str += 2;
+                        for mu in plugin.match_unions() {
+                            help_message.push_str(&format!(
+                                "{}{} - {}\n",
+                                " ".repeat(tab_str),
+                                mu.matcher,
+                                mu.description
+                            ));
+                        }
+                        tab_str -= 2;
+                    }
+                    ctx.caller
+                        .send_msg(SendMsgParams {
+                            user_id: Some(ctx.event.user_id()),
+                            group_id: ctx.event.group_id(),
+                            message: MessageContent::Text(help_message),
+                            auto_escape: true,
+                            message_type: None,
+                        })
+                        .await?;
+                    Ok(true)
+                })
+            },
+        );
     }
 }

@@ -17,14 +17,23 @@ mod markdown;
 static DEEPSEEK_API_KEY: LazyLock<String> = LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
 
 pub fn gpt_plugin() -> Plugin {
-    let mut plugin = Plugin::new();
-    for (command, max_tokens, reply_image) in [
-        ("#gpt", Some(512), false), // gpt 使用文本输出，需要文本内容较短
-        ("#igpt", None, true),      // igpt 使用图片输出，不需要限制 token
+    let mut plugin = Plugin::new("GPT 插件", "使用 DeepSeek API 进行对话");
+    for (description, command, max_tokens, reply_image) in [
+        ("提问并获得文本答复", "#gpt", Some(512), false), // gpt 使用文本输出，需要文本内容较短
+        ("提问并获得图片答复", "#igpt", None, true),      // igpt 使用图片输出，不需要限制 token
     ] {
         plugin.on(
+            description,
             Rule::on_group_message() & Rule::on_prefix(command),
-            move |caller, event| Box::pin(call_deepseek_api(caller, event, command, max_tokens, reply_image)),
+            move |ctx| {
+                Box::pin(call_deepseek_api(
+                    ctx.caller,
+                    ctx.event,
+                    command,
+                    max_tokens,
+                    reply_image,
+                ))
+            },
         )
     }
     plugin
@@ -36,10 +45,10 @@ async fn call_deepseek_api(
     command: &'static str,
     max_tokens: Option<i32>,
     reply_image: bool,
-) -> Result<()> {
+) -> Result<bool> {
     let text = event.plain_text().trim().trim_start_matches(command).trim().to_owned();
     if text.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
     caller
         .set_msg_emoji_like(SetMsgEmojiLikeParams {
@@ -75,7 +84,7 @@ async fn call_deepseek_api(
     .await;
     let (text, emoji, res) = match resp_text {
         Err(e) => ("获取大模型回复失败，请稍后重试".to_string(), Emoji::泪奔_1, Err(e)),
-        Ok(resp_text) => (resp_text, Emoji::庆祝_1, Ok(())),
+        Ok(resp_text) => (resp_text, Emoji::庆祝_1, Ok(true)),
     };
     let mut tempfile = TempFile::new().await?;
     let message = if reply_image {

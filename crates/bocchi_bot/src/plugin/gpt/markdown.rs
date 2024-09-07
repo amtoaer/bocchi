@@ -16,15 +16,26 @@ const PORT: &str = "4444";
 const FIREFOX_BINARY: &str = "/usr/bin/firefox";
 const GECKO_DRIVER_BINARY: &str = "/usr/bin/geckodriver";
 
-static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
-    let mut gecko_driver_process = Command::new(GECKO_DRIVER_BINARY)
-        .args(["--port", PORT, "--binary", FIREFOX_BINARY])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .expect("启动 Gecko 驱动失败");
-    match gecko_driver_process.stdout.take() {
+// Rust 的子进程没有实现 Drop，这里手动实现一下，确保自动退出
+struct ChildGuard(Child);
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        self.0.kill().ok();
+    }
+}
+
+static GECKO_DRIVER_COMMAND: LazyLock<ChildGuard> = LazyLock::new(|| {
+    let mut gecko_driver_process = ChildGuard(
+        Command::new(GECKO_DRIVER_BINARY)
+            .args(["--port", PORT, "--binary", FIREFOX_BINARY])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("启动 Gecko 驱动失败"),
+    );
+    match gecko_driver_process.0.stdout.take() {
         None => panic!("获取 Gecko 输出失败"),
         Some(stdout) => {
             let mut reader = io::BufReader::new(stdout);
@@ -33,7 +44,7 @@ static GECKO_DRIVER_COMMAND: LazyLock<Child> = LazyLock::new(|| {
             // 目前很简单，当输出中包含监听地址时，认为启动成功
             if buf.contains(&format!("Listening on 127.0.0.1:{PORT}")) {
                 // 重要：必须将 stdout 重新放回 gecko_driver_process，否则后续日志找不到 pipe 输出，process 会中断
-                gecko_driver_process.stdout = Some(reader.into_inner());
+                gecko_driver_process.0.stdout = Some(reader.into_inner());
                 return gecko_driver_process;
             }
             panic!("启动 Gecko 驱动失败");
