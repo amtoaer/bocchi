@@ -1,33 +1,38 @@
-use std::{future::Future, pin::Pin};
+use std::{borrow::Cow, future::Future, pin::Pin, sync::Arc};
 
 use anyhow::Result;
 
-use crate::{
-    adapter::Caller,
-    chain::{MatchUnion, Matcher},
-    schema::Event,
-};
+use crate::chain::{Context, MatchUnion, Matcher};
 
-#[derive(Default)]
-pub struct Plugin(Vec<MatchUnion>);
+pub struct Plugin {
+    pub name: Cow<'static, str>,
+    pub description: Cow<'static, str>,
+    match_unions: Vec<Arc<MatchUnion>>,
+}
 
 impl Plugin {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(name: impl Into<Cow<'static, str>>, description: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            match_unions: Vec::new(),
+        }
     }
 
-    pub fn on<M, H>(&mut self, matcher: M, handler: H)
+    pub fn on<D, M, H>(&mut self, description: D, matcher: M, handler: H)
     where
+        D: Into<Cow<'static, str>>,
         M: Into<Matcher>,
-        H: for<'a> Fn(&'a dyn Caller, &'a Event) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>
-            + Send
-            + Sync
-            + 'static,
+        H: for<'a> Fn(Context<'a>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send + 'a>> + Send + Sync + 'static,
     {
-        self.0.push(MatchUnion::new(matcher.into(), Box::new(handler)));
+        self.match_unions.push(Arc::new(MatchUnion::new(
+            description.into(),
+            matcher.into(),
+            Box::new(handler),
+        )));
     }
 
-    pub fn into_inner(self) -> Vec<MatchUnion> {
-        self.0
+    pub(crate) fn match_unions(&self) -> &[Arc<MatchUnion>] {
+        &self.match_unions
     }
 }

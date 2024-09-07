@@ -5,7 +5,7 @@ mod ws;
 
 pub use ws::WsAdapter;
 
-use crate::{chain::MatchUnion, schema::*};
+use crate::{plugin::Plugin, schema::*};
 
 #[derive(Debug, Default)]
 pub enum Status {
@@ -17,7 +17,7 @@ pub enum Status {
 
 #[async_trait]
 pub trait Connector: Sync {
-    async fn spawn(mut self: Box<Self>, match_unions: Vec<MatchUnion>);
+    async fn spawn(mut self: Box<Self>, plugins: Vec<Plugin>);
 }
 
 #[async_trait]

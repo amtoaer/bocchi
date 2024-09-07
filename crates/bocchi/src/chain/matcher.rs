@@ -1,21 +1,30 @@
-use std::{cmp::max, ops};
+use std::{fmt::Display, ops};
 
-use crate::{chain::Rule, schema::Event};
+use crate::{
+    chain::{rule::InnerRule, Rule},
+    schema::Event,
+};
 
 #[derive(Default)]
 pub struct Matcher {
     pub condition: Vec<Rule>,
-    pub priority: u8,
+}
+
+impl Display for Matcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for rule in self.condition.iter().take(self.condition.len() - 1) {
+            write!(f, "{} & ", rule.name)?;
+        }
+        if let Some(rule) = self.condition.last() {
+            write!(f, "{}", rule.name)?;
+        }
+        Ok(())
+    }
 }
 
 impl Matcher {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn set_priority(mut self, priority: u8) -> Self {
-        self.priority = priority;
-        self
     }
 
     pub fn add(&mut self, rules: Vec<Rule>) {
@@ -24,28 +33,23 @@ impl Matcher {
 
     pub fn is_match(&self, event: &Event) -> bool {
         for rule in &self.condition {
-            match rule {
-                Rule::OnText(handler) => {
+            match &rule.inner {
+                InnerRule::OnText(handler) => {
                     if !handler(&event.plain_text()) {
                         return false;
                     }
                 }
-                Rule::OnMessage(handler) => {
-                    if !handler(event.message()) {
-                        return false;
-                    }
-                }
-                Rule::OnSender(handler) => {
+                InnerRule::OnSender(handler) => {
                     if !handler(event.sender()) {
                         return false;
                     }
                 }
-                Rule::OnEventStatic(handler) => {
+                InnerRule::OnEventStatic(handler) => {
                     if !handler(event) {
                         return false;
                     }
                 }
-                Rule::OnEvent(handler) => {
+                InnerRule::OnEvent(handler) => {
                     if !handler(event) {
                         return false;
                     }
@@ -62,7 +66,6 @@ impl ops::BitAnd<Matcher> for Matcher {
     fn bitand(self, rhs: Matcher) -> Self::Output {
         Self {
             condition: self.condition.into_iter().chain(rhs.condition).collect(),
-            priority: max(self.priority, rhs.priority),
         }
     }
 }
@@ -78,9 +81,6 @@ impl ops::BitAnd<Rule> for Matcher {
 
 impl From<Rule> for Matcher {
     fn from(rule: Rule) -> Self {
-        Self {
-            condition: vec![rule],
-            priority: 0,
-        }
+        Self { condition: vec![rule] }
     }
 }
