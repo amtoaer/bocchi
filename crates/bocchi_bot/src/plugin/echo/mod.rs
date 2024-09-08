@@ -9,6 +9,7 @@ pub fn echo_plugin() -> Plugin {
 
     plugin.on(
         "原样输出 echo 后的内容",
+        i32::default(),
         Rule::on_message() & Rule::on_prefix("#echo"),
         |ctx| {
             Box::pin(async move {

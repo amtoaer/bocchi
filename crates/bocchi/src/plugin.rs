@@ -19,7 +19,7 @@ impl Plugin {
         }
     }
 
-    pub fn on<D, M, H>(&mut self, description: D, matcher: M, handler: H)
+    pub fn on<D, M, H>(&mut self, description: D, priority: i32, matcher: M, handler: H)
     where
         D: Into<Cow<'static, str>>,
         M: Into<Matcher>,
@@ -27,6 +27,7 @@ impl Plugin {
     {
         self.match_unions.push(Arc::new(MatchUnion::new(
             description.into(),
+            priority,
             matcher.into(),
             Box::new(handler),
         )));

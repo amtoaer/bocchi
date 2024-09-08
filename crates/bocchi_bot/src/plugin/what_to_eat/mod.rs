@@ -19,6 +19,7 @@ pub fn what_to_eat_plugin() -> Plugin {
 
     plugin.on(
         "随机推荐食物",
+        i32::default(),
         Rule::on_message() & Rule::on_exact_match("#wte"),
         |ctx| {
             Box::pin(async move {

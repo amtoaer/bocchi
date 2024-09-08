@@ -1,4 +1,4 @@
-use std::{borrow::Cow, future::Future, pin::Pin};
+use std::{borrow::Cow, future::Future, i32, pin::Pin};
 
 use anyhow::Result;
 
@@ -22,13 +22,13 @@ impl Bot {
         })
     }
 
-    pub fn on<D, M, H>(&mut self, description: D, matcher: M, handler: H)
+    pub fn on<D, M, H>(&mut self, description: D, priority: i32, matcher: M, handler: H)
     where
         D: Into<Cow<'static, str>>,
         M: Into<Matcher>,
         H: for<'a> Fn(Context<'a>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send + 'a>> + Send + Sync + 'static,
     {
-        self.plugins[0].on(description, matcher, handler);
+        self.plugins[0].on(description, priority, matcher, handler);
     }
 
     pub fn register_plugin(&mut self, plugin: Plugin) {
@@ -44,6 +44,7 @@ impl Bot {
     pub fn use_build_in_handler(&mut self) {
         self.on(
             "显示帮助信息",
+            i32::MAX,
             Rule::on_message() & Rule::on_exact_match("#help"),
             |ctx| {
                 Box::pin(async move {
