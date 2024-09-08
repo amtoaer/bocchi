@@ -71,7 +71,8 @@ async fn html_to_image(html: &str) -> Result<Vec<u8>> {
     // client 构建必须要晚于 gecko 驱动的启动
     let browser = FANTOCCINI_CLIENT
         .get_or_init(|| async {
-            fantoccini::ClientBuilder::native()
+            fantoccini::ClientBuilder::rustls()
+                .unwrap()
                 .capabilities(serde_json::Map::from_iter(vec![(
                     "moz:firefoxOptions".to_string(),
                     serde_json::json!(
