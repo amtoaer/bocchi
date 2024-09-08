@@ -32,6 +32,7 @@ pub fn hacker_news_plugin() -> Plugin {
 
     plugin.on(
         "输出 Hacker News top 10",
+        i32::default(),
         Rule::on_message() & Rule::on_exact_match("#hn"),
         |ctx| {
             Box::pin(async move {

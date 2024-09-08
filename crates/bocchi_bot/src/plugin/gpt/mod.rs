@@ -24,6 +24,7 @@ pub fn gpt_plugin() -> Plugin {
     ] {
         plugin.on(
             description,
+            i32::default(),
             Rule::on_group_message() & Rule::on_prefix(command),
             move |ctx| {
                 Box::pin(call_deepseek_api(

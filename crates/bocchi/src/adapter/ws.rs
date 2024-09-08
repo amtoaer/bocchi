@@ -97,7 +97,8 @@ impl Connector for WsAdapter {
             .flat_map(|plugin| plugin.match_unions())
             .cloned()
             .collect::<Vec<_>>();
-        match_unions.sort_by_key(|mu| mu.priority);
+        // 优先级从大到小排序
+        match_unions.sort_by(|a, b| b.priority.cmp(&a.priority));
         // Arc 封装后传递给处理任务
         let match_unions = Arc::new(match_unions);
         // 插件本身保持不变，用 Arc 封装后传递给处理任务

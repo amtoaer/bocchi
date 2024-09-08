@@ -12,6 +12,7 @@ pub fn bonus_plugin() -> Plugin {
 
     plugin.on(
         "签到逻辑的处理",
+        i32::default(),
         Rule::on_message() & Rule::on_exact_match("#bonus"),
         |ctx| {
             Box::pin(async move {

@@ -8,19 +8,19 @@ pub use matcher::Matcher;
 pub use rule::Rule;
 
 pub struct MatchUnion {
-    pub matcher: Matcher,
-    pub handler: Handler,
     pub description: Cow<'static, str>,
     pub priority: i32,
+    pub matcher: Matcher,
+    pub handler: Handler,
 }
 
 impl MatchUnion {
-    pub fn new(description: Cow<'static, str>, matcher: Matcher, handler: Handler) -> Self {
+    pub fn new(description: Cow<'static, str>, priority: i32, matcher: Matcher, handler: Handler) -> Self {
         Self {
             description,
+            priority,
             matcher,
             handler,
-            priority: 0,
         }
     }
 }

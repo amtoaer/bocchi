@@ -22,6 +22,7 @@ pub fn repeat_plugin() -> Plugin {
 
     plugin.on(
         format!("检测是否满足连续 {THRESHOLD} 条消息"),
+        i32::MIN, // 复读插件的优先级需要很低，避免其它命令被复读响应
         Rule::on_group_message(),
         move |ctx| {
             let map_clone = map.clone();
