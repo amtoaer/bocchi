@@ -26,3 +26,6 @@ async-tempfile = { workspace = true }
 pulldown-cmark = { workspace = true }
 aho-corasick = { workspace = true }
 rustls = { workspace = true }
+futures = { workspace = true }
+tokio-stream = { workspace = true }
+base64-simd = { workspace = true }

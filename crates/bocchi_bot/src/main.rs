@@ -1,5 +1,8 @@
 #![deny(unsafe_code)]
 
+#[macro_use]
+extern crate tracing;
+
 mod migrate;
 mod model;
 mod plugin;
@@ -28,5 +31,7 @@ async fn main() -> Result<()> {
     bot_instance.register_plugin(plugin::echo_plugin());
     bot_instance.register_plugin(plugin::gpt_plugin());
     bot_instance.register_plugin(plugin::repeat_plugin());
+    bot_instance.register_plugin(plugin::hacker_news_plugin());
+    bot_instance.register_plugin(plugin::what_to_eat_plugin());
     bot_instance.start().await
 }
