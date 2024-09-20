@@ -49,7 +49,7 @@ pub fn repeat_plugin() -> Plugin {
                 });
                 if repeat.text != text {
                     // 文本不同，重置复读
-                    repeat.text = text.to_string();
+                    repeat.text = text;
                     repeat.users.clear();
                     repeat.users.insert(user_id);
                     repeat.repeated = false;
@@ -65,7 +65,7 @@ pub fn repeat_plugin() -> Plugin {
                                 .send_msg(SendMsgParams {
                                     user_id: None,
                                     group_id: Some(group_id),
-                                    message: MessageContent::Text(text.to_string()),
+                                    message: MessageContent::Text(text),
                                     auto_escape: true,
                                     message_type: None,
                                 })
