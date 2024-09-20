@@ -58,7 +58,7 @@ async fn markdown_to_html(markdown: String) -> Result<String> {
     Ok(tokio::task::spawn_blocking(move || {
         // 将 \[、\] 替换为 $$，\(、\) 替换为 $，这是 Katex 的默认兼容写法，与 pulldown_cmark 也不会有冲突。
         let markdown = AHO_CORASICK.replace_all(&markdown, &["$$", "$$", "$", "$"]);
-        let parser = pulldown_cmark::Parser::new(&markdown);
+        let parser = pulldown_cmark::Parser::new_ext(&markdown, pulldown_cmark::Options::ENABLE_TABLES);
         let mut html = String::new();
         pulldown_cmark::html::push_html(&mut html, parser);
         html

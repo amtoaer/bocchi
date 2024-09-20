@@ -4,7 +4,7 @@ use anyhow::Ok;
 use bocchi::{
     chain::Rule,
     plugin::Plugin,
-    schema::{MessageContent, SendMsgParams},
+    schema::{MessageContent, MessageSegment, SendMsgParams},
 };
 use dashmap::DashMap;
 
@@ -29,11 +29,21 @@ pub fn repeat_plugin() -> Plugin {
             Box::pin(async move {
                 // 因为 on_group_message 限制，group_id unwrap 是安全的
                 let (user_id, group_id) = (ctx.event.user_id(), ctx.event.group_id().unwrap());
-                let text = ctx.event.plain_text();
+                let text = match ctx.event.message() {
+                    MessageContent::Text(text) => text.to_string(),
+                    MessageContent::Segment(segments) => {
+                        if segments.iter().any(|msg| !matches!(msg, MessageSegment::Text { .. })) {
+                            // 打个补丁，暂时忽略非纯文本消息
+                            "".to_string()
+                        } else {
+                            ctx.event.plain_text().to_string()
+                        }
+                    }
+                };
                 // 注意 text 不再过滤空文本，因为穿插图片等消息应该被视作打断复读
                 let map_entry = map_clone.entry(group_id);
                 let mut repeat = map_entry.or_insert_with(|| Repeat {
-                    text: text.to_string(),
+                    text: text.clone(),
                     users: HashSet::from([user_id]),
                     repeated: false,
                 });

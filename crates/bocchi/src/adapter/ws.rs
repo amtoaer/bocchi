@@ -131,7 +131,7 @@ impl Connector for WsAdapter {
                                             error!("Received response with unknown request ID: {text}");
                                         }
                                     } else if let Ok(event) = serde_json::from_str::<Event>(&text) {
-                                        info!("Receive event: {event:?}");
+                                        debug!("Receive event: {event:?}");
                                         let self_clone = self.clone();
                                         let match_unions_clone = match_unions.clone();
                                         let plugins_clone = plugins.clone();
