@@ -17,46 +17,24 @@ pub fn bonus_plugin() -> Plugin {
         |ctx| {
             Box::pin(async move {
                 let (user_id, nickname) = (ctx.event.user_id(), ctx.event.nickname());
-                let res = tokio::task::spawn_blocking(move || {
-                    let mut got_point = 0;
-                    let db = database();
-                    let rw = db.rw_transaction()?;
-                    let point: Option<Point> = rw.get().primary(user_id)?;
-                    match point {
-                        Some(mut point) => {
-                            if point.last_update.date_naive() != chrono::Local::now().date_naive() {
-                                got_point = rand::thread_rng().gen_range(1..=100);
-                                point.point += got_point;
-                                point.name = nickname.to_owned();
-                                point.last_update = chrono::Local::now();
-                                rw.insert(point)?;
-                            }
-                        }
-                        None => {
-                            got_point = rand::thread_rng().gen_range(1..=100);
-                            let point = Point {
-                                id: user_id,
-                                name: nickname.to_owned(),
-                                point: got_point,
-                                last_update: chrono::Local::now(),
-                            };
-                            rw.insert(point)?;
-                        }
-                    }
-                    rw.commit()?;
-                    Ok::<_, anyhow::Error>(got_point)
-                })
-                .await?;
-                let (msg, ret) = match res {
-                    Err(e) => (" 签到失败，请重试".to_string(), Err(e)),
-                    Ok(got_point) => {
-                        let msg = if got_point != 0 {
-                            format!(" 签到成功，获得 {} 点数", got_point)
-                        } else {
-                            " 今天已经签到过了，请明天再来".to_string()
-                        };
-                        (msg, Ok(true))
-                    }
+                let rw = database().rw_transaction()?;
+                let mut point: Point = rw
+                    .get()
+                    .primary(user_id)?
+                    .unwrap_or_else(|| Point::new(user_id, nickname.to_owned()));
+                let mut got_point = 0;
+                if point.last_update.date_naive() != chrono::Local::now().date_naive() {
+                    got_point = rand::thread_rng().gen_range(1..=100);
+                    point.point += got_point;
+                    point.name = nickname;
+                    point.last_update = chrono::Local::now();
+                    rw.insert(point)?;
+                }
+                rw.commit()?;
+                let msg = if got_point != 0 {
+                    format!(" 签到成功，获得 {} 点数", got_point)
+                } else {
+                    " 今天已经签到过了，请明天再来".to_string()
                 };
                 ctx.caller
                     .send_msg(SendMsgParams {
@@ -72,7 +50,7 @@ pub fn bonus_plugin() -> Plugin {
                         message_type: None,
                     })
                     .await?;
-                ret
+                Ok(true)
             })
         },
     );
