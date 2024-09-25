@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::schema::{MessageContent, MessageSegment};
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Sender {
     pub user_id: Option<i64>,
     pub nickname: Option<String>,

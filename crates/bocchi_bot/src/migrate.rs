@@ -16,6 +16,7 @@ pub fn database() -> &'static Database<'static> {
         let db = Builder::new().create(&MODELS, "./db.native_db").unwrap();
         let rw = db.rw_transaction().unwrap();
         rw.migrate::<model::points::v1::Point>().unwrap();
+        rw.migrate::<model::memory::v1::Memory>().unwrap();
         rw.commit().unwrap();
         db
     })

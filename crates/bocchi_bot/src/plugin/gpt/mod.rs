@@ -11,7 +11,12 @@ use bocchi::{
 use serde_json::{json, Value};
 use tokio::io::AsyncWriteExt;
 
-use crate::utils::HTTP_CLIENT;
+use crate::{
+    migrate::database,
+    model::memory::{v1::Memory, CachedMessage},
+    utils::HTTP_CLIENT,
+};
+
 mod markdown;
 
 static DEEPSEEK_API_KEY: LazyLock<String> = LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
@@ -37,6 +42,39 @@ pub fn gpt_plugin() -> Plugin {
             },
         )
     }
+    plugin.on(
+        "清除 GPT 的消息历史",
+        i32::default(),
+        Rule::on_group_message() & Rule::on_exact_match("#clear_gpt"),
+        move |ctx| {
+            Box::pin(async move {
+                let database = database();
+                for command in ["#gpt", "#igpt"] {
+                    let cache_key = format!("{}_{:?}_{}", command, ctx.event.group_id(), ctx.event.user_id());
+                    let rw = database.rw_transaction()?;
+                    rw.remove::<Memory>(Memory::new(cache_key))?;
+                    rw.commit()?;
+                }
+                ctx.caller
+                    .send_msg(SendMsgParams {
+                        message_type: None,
+                        user_id: Some(ctx.event.user_id()),
+                        group_id: ctx.event.group_id(),
+                        message: MessageContent::Segment(vec![
+                            MessageSegment::At {
+                                qq: ctx.event.user_id().to_string(),
+                            },
+                            MessageSegment::Text {
+                                text: " GPT 消息历史已清除".to_string(),
+                            },
+                        ]),
+                        auto_escape: true,
+                    })
+                    .await?;
+                Ok(true)
+            })
+        },
+    );
     plugin
 }
 
@@ -57,12 +95,20 @@ async fn call_deepseek_api(
             emoji_id: Emoji::敬礼_1.id(),
         })
         .await?;
+    let cache_key = format!("{}_{:?}_{}", command, event.group_id(), event.user_id());
+    let rw = database().rw_transaction()?;
+    let mut memory = rw
+        .get()
+        .primary::<Memory>(&cache_key)?
+        .unwrap_or_else(|| Memory::new(cache_key.clone()));
+    memory.history.push_back(CachedMessage {
+        sender: Some(event.sender().clone()),
+        content: text,
+    });
     let resp_text = async {
         let mut body = json!({
             "model": "deepseek-chat",
-            "messages": [
-                {"role": "user", "content": text}
-            ],
+            "messages": memory.history.iter().map(CachedMessage::to_gpt_message).collect::<Vec<_>>(),
             "stream": false
         });
         if let Some(max_tokens) = max_tokens {
@@ -87,6 +133,15 @@ async fn call_deepseek_api(
         Err(e) => ("获取大模型回复失败，请稍后重试".to_string(), Emoji::泪奔_1, Err(e)),
         Ok(resp_text) => (resp_text, Emoji::庆祝_1, Ok(true)),
     };
+    memory.history.push_back(CachedMessage {
+        sender: None,
+        content: text.clone(),
+    });
+    while memory.history.len() > 10 {
+        memory.history.pop_front();
+    }
+    rw.insert(memory)?;
+    rw.commit()?;
     let mut tempfile = TempFile::new().await?;
     let message = if reply_image {
         tempfile.write_all(&markdown::markdown_to_image(text).await?).await?;
