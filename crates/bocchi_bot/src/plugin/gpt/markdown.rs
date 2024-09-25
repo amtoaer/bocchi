@@ -9,7 +9,7 @@ use fantoccini::Locator;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
-    sync::OnceCell,
+    sync::{Mutex, OnceCell},
 };
 
 const PORT: &str = "4444";
@@ -17,7 +17,7 @@ const FIREFOX_BINARY: &str = "/usr/bin/firefox";
 const GECKO_DRIVER_BINARY: &str = "/usr/bin/geckodriver";
 
 static GECKO_DRIVER_INITED: OnceCell<()> = OnceCell::const_new();
-static FANTOCCINI_CLIENT: OnceCell<fantoccini::Client> = OnceCell::const_new();
+static FANTOCCINI_CLIENT: OnceCell<Mutex<fantoccini::Client>> = OnceCell::const_new();
 static AHO_CORASICK: LazyLock<AhoCorasick> = LazyLock::new(|| AhoCorasick::new([r"\[", r"\]", r"\(", r"\)"]).unwrap());
 
 async fn run_gecko_driver() {
@@ -71,7 +71,7 @@ async fn html_to_image(html: &str) -> Result<Vec<u8>> {
     // client 构建必须要晚于 gecko 驱动的启动
     let browser = FANTOCCINI_CLIENT
         .get_or_init(|| async {
-            fantoccini::ClientBuilder::rustls()
+            let client = fantoccini::ClientBuilder::rustls()
                 .unwrap()
                 .capabilities(serde_json::Map::from_iter(vec![(
                     "moz:firefoxOptions".to_string(),
@@ -86,13 +86,14 @@ async fn html_to_image(html: &str) -> Result<Vec<u8>> {
                 )]))
                 .connect(&format!("http://localhost:{PORT}"))
                 .await
-                .expect("连接到 Gecko 驱动失败")
+                .expect("连接到 Gecko 驱动失败");
+            Mutex::new(client)
         })
-        .await
-        .clone();
+        .await;
     let mut tempfile = TempFile::new().await?;
     tempfile.write_all(render(html).as_bytes()).await?;
     tempfile.flush().await?;
+    let browser = browser.lock().await;
     browser
         .goto(&format!("file://{}", tempfile.file_path().to_string_lossy()))
         .await?;
