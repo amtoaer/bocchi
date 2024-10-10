@@ -36,9 +36,7 @@ impl Bot {
     }
 
     pub async fn start(self) -> Result<()> {
-        self.adapter.spawn(self.plugins).await;
-        info!("bot started!");
-        Ok(tokio::signal::ctrl_c().await?)
+        self.adapter.spawn(self.plugins).await
     }
 
     pub fn use_build_in_handler(&mut self) {

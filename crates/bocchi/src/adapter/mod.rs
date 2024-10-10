@@ -1,23 +1,17 @@
-use anyhow::{Error, Result};
+use std::sync::Arc;
+
+use anyhow::Result;
 use async_trait::async_trait;
 mod error;
 mod ws;
 
 pub use ws::WsAdapter;
 
-use crate::{plugin::Plugin, schema::*};
-
-#[derive(Debug, Default)]
-pub enum Status {
-    #[default]
-    NotConnected,
-    Connected,
-    Disconnected(Option<Error>),
-}
+use crate::{chain::MatchUnion, plugin::Plugin, schema::*};
 
 #[async_trait]
 pub trait Connector: Sync {
-    async fn spawn(mut self: Box<Self>, plugins: Vec<Plugin>);
+    async fn spawn(mut self: Box<Self>, plugins: Vec<Plugin>) -> Result<()>;
 }
 
 #[async_trait]
@@ -35,4 +29,17 @@ pub trait Caller: Sync {
 }
 
 #[async_trait]
-pub trait Adapter: Connector + Caller + Sync {}
+pub trait Adapter: Connector + Caller {}
+
+pub(crate) fn extract_match_unions(plugins: &[Plugin]) -> Vec<Arc<MatchUnion>> {
+    // 每个插件都有自己的 MatchUnion，但处理时不按插件分割，而是统一按照优先级排序处理
+    // 将排序过程提前，避免在处理任务中重复排序（引入的代价就是 MatchUnion 需要用 Arc 包装）
+    let mut match_unions = plugins
+        .iter()
+        .flat_map(|plugin| plugin.match_unions())
+        .cloned()
+        .collect::<Vec<_>>();
+    // 优先级从大到小排序
+    match_unions.sort_by(|a, b| b.priority.cmp(&a.priority));
+    match_unions
+}
