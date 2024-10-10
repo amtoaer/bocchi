@@ -48,13 +48,12 @@ pub fn gpt_plugin() -> Plugin {
         Rule::on_group_message() & Rule::on_exact_match("#clear_gpt"),
         move |ctx| {
             Box::pin(async move {
-                let database = database();
+                let rw = database().rw_transaction()?;
                 for command in ["#gpt", "#igpt"] {
                     let cache_key = format!("{}_{:?}_{}", command, ctx.event.group_id(), ctx.event.user_id());
-                    let rw = database.rw_transaction()?;
                     rw.remove::<Memory>(Memory::new(cache_key))?;
-                    rw.commit()?;
                 }
+                rw.commit()?;
                 ctx.caller
                     .send_msg(SendMsgParams {
                         message_type: None,
