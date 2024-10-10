@@ -98,7 +98,7 @@ async fn call_deepseek_api(
         .await?;
     let cache_key = format!("{}_{:?}_{}", command, event.group_id(), event.user_id());
     let lock = LOCKS.entry(cache_key.clone()).or_default();
-    let _guard = lock.lock();
+    let _guard = lock.lock().await;
     let r = database().r_transaction()?;
     let mut memory = r
         .get()
