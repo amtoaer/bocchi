@@ -8,8 +8,9 @@ use bocchi::{
     plugin::Plugin,
     schema::{Emoji, Event, MessageContent, MessageSegment, SendMsgParams, SetMsgEmojiLikeParams},
 };
+use dashmap::DashMap;
 use serde_json::{json, Value};
-use tokio::io::AsyncWriteExt;
+use tokio::{io::AsyncWriteExt, sync::Mutex};
 
 use crate::{
     migrate::database,
@@ -20,6 +21,7 @@ use crate::{
 mod markdown;
 
 static DEEPSEEK_API_KEY: LazyLock<String> = LazyLock::new(|| env::var("DEEPSEEK_API_KEY").unwrap_or_default());
+static LOCKS: LazyLock<DashMap<String, Mutex<()>>> = LazyLock::new(DashMap::new);
 
 pub fn gpt_plugin() -> Plugin {
     let mut plugin = Plugin::new("GPT 插件", "使用 DeepSeek API 进行对话");
@@ -95,11 +97,14 @@ async fn call_deepseek_api(
         })
         .await?;
     let cache_key = format!("{}_{:?}_{}", command, event.group_id(), event.user_id());
-    let rw = database().rw_transaction()?;
-    let mut memory = rw
+    let lock = LOCKS.entry(cache_key.clone()).or_default();
+    let _guard = lock.lock();
+    let r = database().r_transaction()?;
+    let mut memory = r
         .get()
         .primary::<Memory>(&cache_key)?
         .unwrap_or_else(|| Memory::new(cache_key.clone()));
+    drop(r);
     memory.history.push_back(CachedMessage {
         sender: Some(event.sender().clone()),
         content: text,
@@ -139,8 +144,10 @@ async fn call_deepseek_api(
     while memory.history.len() > 10 {
         memory.history.pop_front();
     }
+    let rw = database().rw_transaction()?;
     rw.insert(memory)?;
     rw.commit()?;
+    drop(_guard);
     let mut tempfile = TempFile::new().await?;
     let message = if reply_image {
         tempfile.write_all(&markdown::markdown_to_image(text).await?).await?;
