@@ -7,7 +7,7 @@ pub mod v1 {
 
     use super::*;
 
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
     #[native_model(id = 1, version = 1)]
     #[native_db]
     pub struct Point {

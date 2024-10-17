@@ -11,7 +11,7 @@ pub fn bonus_plugin() -> Plugin {
     let mut plugin = Plugin::new("每日签到插件", "每日签到获取积分");
 
     plugin.on(
-        "签到逻辑的处理",
+        "每日签到",
         i32::default(),
         Rule::on_message() & Rule::on_exact_match("#bonus"),
         |ctx| {
@@ -28,21 +28,62 @@ pub fn bonus_plugin() -> Plugin {
                     point.point += got_point;
                     point.name = nickname;
                     point.last_update = chrono::Local::now();
-                    rw.insert(point)?;
+                    rw.insert(point.clone())?;
                 }
                 rw.commit()?;
                 let msg = if got_point != 0 {
-                    format!(" 签到成功，获得 {} 点数", got_point)
+                    format!(
+                        "本次签到积分：{}\n当前总积分：{}\n最后签到时间：{}",
+                        got_point,
+                        point.point,
+                        point.last_update.format("%Y-%m-%d %H:%M:%S")
+                    )
                 } else {
-                    " 今天已经签到过了，请明天再来".to_string()
+                    "今天已经签到过了，请明天再来～".to_string()
                 };
                 ctx.caller
                     .send_msg(SendMsgParams {
                         user_id: Some(user_id),
                         group_id: ctx.event.group_id(),
                         message: MessageContent::Segment(vec![
-                            MessageSegment::At {
-                                qq: user_id.to_string(),
+                            MessageSegment::Reply {
+                                id: ctx.event.message_id().to_string(),
+                            },
+                            MessageSegment::Text { text: msg },
+                        ]),
+                        auto_escape: true,
+                        message_type: None,
+                    })
+                    .await?;
+                Ok(true)
+            })
+        },
+    );
+
+    plugin.on(
+        "查询个人签到分数",
+        i32::default(),
+        Rule::on_message() & Rule::on_exact_match("#my_bonus"),
+        |ctx| {
+            Box::pin(async move {
+                let user_id = ctx.event.user_id();
+                let r = database().r_transaction()?;
+                let point: Option<Point> = r.get().primary(user_id)?;
+                let msg = match point {
+                    Some(point) => format!(
+                        "当前总积分：{}\n最后签到时间：{}",
+                        point.point,
+                        point.last_update.format("%Y-%m-%d %H:%M:%S")
+                    ),
+                    None => "你还没有签到过哦，发送 #bonus 进行第一次签到吧！".to_string(),
+                };
+                ctx.caller
+                    .send_msg(SendMsgParams {
+                        user_id: Some(user_id),
+                        group_id: ctx.event.group_id(),
+                        message: MessageContent::Segment(vec![
+                            MessageSegment::Reply {
+                                id: ctx.event.message_id().to_string(),
                             },
                             MessageSegment::Text { text: msg },
                         ]),
