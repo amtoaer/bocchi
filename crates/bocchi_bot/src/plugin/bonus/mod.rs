@@ -69,6 +69,7 @@ pub fn bonus_plugin() -> Plugin {
                 let user_id = ctx.event.user_id();
                 let r = database().r_transaction()?;
                 let point: Option<Point> = r.get().primary(user_id)?;
+                drop(r);
                 let msg = match point {
                     Some(point) => format!(
                         "当前总积分：{}\n最后签到时间：{}",

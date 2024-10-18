@@ -187,6 +187,5 @@ async fn call_deepseek_api(
             auto_escape: true,
         })
         .await?;
-    assert!(tempfile.file_path().is_file());
     res
 }
