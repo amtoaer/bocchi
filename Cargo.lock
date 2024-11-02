@@ -1063,15 +1063,14 @@ checksum = "c9be0862c1b3f26a88803c4a49de6889c10e608b3ee9344e6ef5b45fb37ad3d1"
 
 [[package]]
 name = "native_db"
-version = "0.8.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db7c6b50f9889052a3c1bbd3aa70cc33b76ec1761092aeb0ec0e1ac3cfdb881a"
+checksum = "89733f755069940958e2b63f1d70d614f8b2773e3ff8575f3ab797122b14b4c3"
 dependencies = [
  "native_db_macro",
  "native_model",
  "redb 1.5.1",
  "redb 2.2.0",
- "semver",
  "serde",
  "skeptic",
  "thiserror",
@@ -1079,9 +1078,9 @@ dependencies = [
 
 [[package]]
 name = "native_db_macro"
-version = "0.8.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "434acde56fc4485e0b62533bb2fbc08155ee7e47408b1358348acff556c31b3c"
+checksum = "83c478e633e022e48b6700b066959609fb7c637807bc3c1f8193393e3fbfcdf3"
 dependencies = [
  "proc-macro2",
  "quote",
