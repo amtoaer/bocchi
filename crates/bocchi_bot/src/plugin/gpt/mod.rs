@@ -102,7 +102,7 @@ async fn call_deepseek_api(
     let r = database().r_transaction()?;
     let mut memory = r
         .get()
-        .primary::<Memory>(&cache_key)?
+        .primary::<Memory>(cache_key.as_str())?
         .unwrap_or_else(|| Memory::new(cache_key.clone()));
     drop(r);
     memory.history.push_back(CachedMessage {
