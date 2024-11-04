@@ -1,18 +1,30 @@
+mod bilibili;
 mod youtube;
 
-use bocchi::{chain::Rule, plugin::Plugin, schema::SendMsgParams};
+use std::{future::Future, pin::Pin};
+
+use bocchi::{
+    chain::Rule,
+    plugin::Plugin,
+    schema::{MessageContent, SendMsgParams},
+};
+
+type AsyncMaybeMsg = Pin<Box<dyn Future<Output = Option<MessageContent>> + Send>>;
+type Recognizer = fn(String, i32) -> AsyncMaybeMsg;
 
 pub fn video_detail_plugin() -> Plugin {
     let mut plugin = Plugin::new("视频详情插件", "识别消息中的视频链接，展示详情");
     plugin.on(
-        "注册消息文本监听",
+        "识别消息中是否包含视频链接",
         1, // 优先级比默认的高，以便在其他插件之前处理，此插件仅返回 false，确保不会阻止其他插件的执行
         Rule::on_group_message(),
         |ctx| {
             Box::pin(async move {
                 let (plain_text, message_id) = (ctx.event.plain_text(), ctx.event.message_id());
-                for recognizer in [youtube::recognizer] {
-                    if let Some(message) = recognizer(&plain_text, message_id).await {
+                let named_recognizers: Vec<(&str, Recognizer)> =
+                    vec![("哔哩哔哩", bilibili::recognizer), ("Youtube", youtube::recognizer)];
+                for (name, recognizer) in named_recognizers {
+                    if let Some(message) = recognizer(plain_text.to_string(), message_id).await {
                         if let Err(e) = ctx
                             .caller
                             .send_msg(SendMsgParams {
@@ -24,7 +36,7 @@ pub fn video_detail_plugin() -> Plugin {
                             })
                             .await
                         {
-                            error!("发送 Youtube 详情消息失败: {:?}", e);
+                            error!("{} 平台获取消息成功但发送失败: {:?}", name, e);
                         }
                         // 暂时认为消息中只会包含一种链接
                         break;
