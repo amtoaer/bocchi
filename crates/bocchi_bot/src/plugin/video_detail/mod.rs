@@ -7,7 +7,7 @@ pub fn video_detail_plugin() -> Plugin {
     plugin.on(
         "注册消息文本监听",
         1, // 优先级比默认的高，以便在其他插件之前处理，此插件仅返回 false，确保不会阻止其他插件的执行
-        Rule::on_message(),
+        Rule::on_group_message(),
         |ctx| {
             Box::pin(async move {
                 let (plain_text, message_id) = (ctx.event.plain_text(), ctx.event.message_id());
