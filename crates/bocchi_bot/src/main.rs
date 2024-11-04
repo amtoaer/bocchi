@@ -25,7 +25,7 @@ fn init() {
 #[tokio::main]
 async fn main() -> Result<()> {
     init();
-    let mut bot_instance = Bot::connect("ws://192.168.1.250:3001").await?;
+    let mut bot_instance = Bot::connect("ws://localhost:3001").await?;
     bot_instance.use_build_in_handler();
     bot_instance.register_plugin(plugin::bonus_plugin());
     bot_instance.register_plugin(plugin::echo_plugin());
