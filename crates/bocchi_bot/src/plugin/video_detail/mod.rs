@@ -8,6 +8,7 @@ use bocchi::{
     plugin::Plugin,
     schema::{MessageContent, SendMsgParams},
 };
+use futures::StreamExt;
 
 type AsyncMaybeMsg = Pin<Box<dyn Future<Output = Option<MessageContent>> + Send>>;
 type Recognizer = fn(String, i32) -> AsyncMaybeMsg;
@@ -21,26 +22,34 @@ pub fn video_detail_plugin() -> Plugin {
         |ctx| {
             Box::pin(async move {
                 let (plain_text, message_id) = (ctx.event.plain_text(), ctx.event.message_id());
-                let named_recognizers: Vec<(&str, Recognizer)> =
-                    vec![("哔哩哔哩", bilibili::recognizer), ("Youtube", youtube::recognizer)];
-                for (name, recognizer) in named_recognizers {
-                    if let Some(message) = recognizer(plain_text.to_string(), message_id).await {
-                        if let Err(e) = ctx
-                            .caller
-                            .send_msg(SendMsgParams {
-                                message_type: None,
-                                user_id: Some(ctx.event.user_id()),
-                                group_id: ctx.event.group_id(),
-                                message,
-                                auto_escape: true,
-                            })
-                            .await
-                        {
-                            error!("{} 平台获取消息成功但发送失败: {:?}", name, e);
-                        }
-                        // 暂时认为消息中只会包含一种链接
-                        break;
+                let named_recognizers: [(&str, Recognizer); 2] =
+                    [("哔哩哔哩", bilibili::recognizer), ("Youtube", youtube::recognizer)];
+                let mut futures_unordered = named_recognizers
+                    .into_iter()
+                    .map(|(name, recognizer)| {
+                        let plain_text = plain_text.to_string();
+                        async move { (name, recognizer(plain_text, message_id).await) }
+                    })
+                    .collect::<futures::stream::FuturesUnordered<_>>();
+                while let Some(res) = futures_unordered.next().await {
+                    let (name, Some(message)) = res else {
+                        continue;
+                    };
+                    if let Err(e) = ctx
+                        .caller
+                        .send_msg(SendMsgParams {
+                            message_type: None,
+                            user_id: Some(ctx.event.user_id()),
+                            group_id: ctx.event.group_id(),
+                            message,
+                            auto_escape: true,
+                        })
+                        .await
+                    {
+                        error!("{} 平台获取消息成功但发送失败: {:?}", name, e);
                     }
+                    // 暂时认为消息中只会包含一种链接
+                    break;
                 }
                 Ok(false)
             })
