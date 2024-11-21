@@ -1,16 +1,21 @@
 use std::{sync::LazyLock, time::Duration};
 
 use bocchi::schema::{MessageContent, MessageSegment};
-use futures::{stream::FuturesUnordered, StreamExt};
 use serde::Deserialize;
 
-use crate::{plugin::video_detail::AsyncMaybeMsg, utils::HTTP_CLIENT};
-
-static BILIBILI_BV_REGEX: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/(BV[a-zA-Z0-9_-]{10})").unwrap());
+use crate::utils::HTTP_CLIENT;
 
 static BILIBILI_AV_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/av(\d+)").unwrap());
+static BILIBILI_BV_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/(BV[a-zA-Z0-9_-]{10})").unwrap());
+static BILIBILI_B23_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(https?://(?:www\.)?b23\.tv/[a-zA-Z0-9_-]{7})").unwrap());
+
+enum VideoID {
+    AV(String),
+    BV(String),
+}
 
 #[derive(Deserialize)]
 struct VideoDetail {
@@ -26,33 +31,43 @@ struct Owner {
     name: String,
 }
 
-pub(crate) fn recognizer(text: String, message_id: i32) -> AsyncMaybeMsg {
-    Box::pin(async move {
-        let mut futures_unordered = [("bvid", &BILIBILI_BV_REGEX), ("aid", &BILIBILI_AV_REGEX)]
-            .into_iter()
-            .map(|(param_name, regex_expr)| inner_recognizer(text.as_str(), message_id, param_name, regex_expr))
-            .collect::<FuturesUnordered<_>>();
-        while let Some(res) = futures_unordered.next().await {
-            if let Some(msg) = res {
-                return Some(msg);
-            }
-        }
+fn parse_raw_video_id(text: &str) -> Option<VideoID> {
+    if let Some(caps) = BILIBILI_AV_REGEX.captures(text) {
+        Some(VideoID::AV(caps.get(1)?.as_str().to_string()))
+    } else if let Some(caps) = BILIBILI_BV_REGEX.captures(text) {
+        Some(VideoID::BV(caps.get(1)?.as_str().to_string()))
+    } else {
         None
-    })
+    }
 }
 
-async fn inner_recognizer(
-    text: &str,
-    message_id: i32,
-    param_name: &str,
-    regex_expr: &regex::Regex,
-) -> Option<MessageContent> {
-    let caps = regex_expr.captures(text)?;
-    let video_id = caps.get(1)?.as_str();
-    let url = format!(
-        "https://api.bilibili.com/x/web-interface/view?{}={}",
-        param_name, video_id
-    );
+async fn parse_video_id(text: &str) -> Option<VideoID> {
+    // 尝试直接从文本解析
+    let res = parse_raw_video_id(text);
+    if res.is_some() {
+        return res;
+    }
+    let caps = BILIBILI_B23_REGEX.captures(text)?;
+    let url = caps.get(1)?.as_str();
+    // FIXME: 此处的需求只是获取 302 后的 URL，但由于 reqwest 会自动重定向，这里会多一次最终的 200 请求
+    // 可以在 ClientBuilder 中设置 redirect_policy 为 none 来禁用自动重定向，但是这样会导致其它地方的重定向也失效
+    // 暂时先这样处理，后续如果 https://github.com/seanmonstar/reqwest/pull/2440 被合并，可以单独为此处请求设置不重定向然后取 Location Header
+    let resp = HTTP_CLIENT
+        .get(url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    let url_after_redirect = resp.url().as_str();
+    parse_raw_video_id(url_after_redirect)
+}
+
+pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageContent> {
+    let video_id = parse_video_id(text).await?;
+    let url = match video_id {
+        VideoID::AV(id) => format!("https://api.bilibili.com/x/web-interface/view?aid={}", id),
+        VideoID::BV(id) => format!("https://api.bilibili.com/x/web-interface/view?bvid={}", id),
+    };
     let resp = HTTP_CLIENT
         .get(&url)
         .timeout(Duration::from_secs(10))
@@ -113,5 +128,9 @@ mod tests {
         let text = "http://bilibili.com/video/BV12T2mYiEyy/";
         let caps = BILIBILI_BV_REGEX.captures(text).unwrap();
         assert_eq!(caps.get(1).unwrap().as_str(), "BV12T2mYiEyy");
+
+        let text = "https://b23.tv/8iZPsI3";
+        let caps = BILIBILI_B23_REGEX.captures(text).unwrap();
+        assert_eq!(caps.get(1).unwrap().as_str(), "https://b23.tv/8iZPsI3");
     }
 }

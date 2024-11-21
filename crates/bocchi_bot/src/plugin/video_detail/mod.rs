@@ -8,10 +8,7 @@ use bocchi::{
     plugin::Plugin,
     schema::{MessageContent, SendMsgParams},
 };
-use futures::StreamExt;
-
-type AsyncMaybeMsg = Pin<Box<dyn Future<Output = Option<MessageContent>> + Send>>;
-type Recognizer = fn(String, i32) -> AsyncMaybeMsg;
+use futures::{stream::FuturesUnordered, StreamExt};
 
 pub fn video_detail_plugin() -> Plugin {
     let mut plugin = Plugin::new("视频详情插件", "识别消息中的视频链接，展示详情");
@@ -22,17 +19,13 @@ pub fn video_detail_plugin() -> Plugin {
         |ctx| {
             Box::pin(async move {
                 let (plain_text, message_id) = (ctx.event.plain_text(), ctx.event.message_id());
-                let named_recognizers: [(&str, Recognizer); 2] =
-                    [("哔哩哔哩", bilibili::recognizer), ("Youtube", youtube::recognizer)];
-                let mut futures_unordered = named_recognizers
-                    .into_iter()
-                    .map(|(name, recognizer)| {
-                        let plain_text = plain_text.to_string();
-                        async move { (name, recognizer(plain_text, message_id).await) }
-                    })
-                    .collect::<futures::stream::FuturesUnordered<_>>();
+                let futures: [Pin<Box<dyn (Future<Output = Option<MessageContent>>) + Send>>; 2] = [
+                    Box::pin(bilibili::recognizer(&plain_text, message_id)),
+                    Box::pin(youtube::recognizer(&plain_text, message_id)),
+                ];
+                let mut futures_unordered = futures.into_iter().collect::<FuturesUnordered<_>>();
                 while let Some(res) = futures_unordered.next().await {
-                    let (name, Some(message)) = res else {
+                    let Some(message) = res else {
                         continue;
                     };
                     if let Err(e) = ctx
@@ -46,7 +39,7 @@ pub fn video_detail_plugin() -> Plugin {
                         })
                         .await
                     {
-                        error!("{} 平台获取消息成功但发送失败: {:?}", name, e);
+                        error!("获取视频消息成功但发送失败: {:?}", e);
                     }
                     // 暂时认为消息中只会包含一种链接
                     break;
