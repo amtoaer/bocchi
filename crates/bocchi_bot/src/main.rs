@@ -34,5 +34,6 @@ async fn main() -> Result<()> {
     bot_instance.register_plugin(plugin::hacker_news_plugin());
     bot_instance.register_plugin(plugin::what_to_eat_plugin());
     bot_instance.register_plugin(plugin::video_detail_plugin());
+    bot_instance.register_plugin(plugin::select_plugin());
     bot_instance.start().await
 }
