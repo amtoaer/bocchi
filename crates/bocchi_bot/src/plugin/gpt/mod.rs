@@ -25,6 +25,7 @@ static LOCKS: LazyLock<DashMap<String, Mutex<()>>> = LazyLock::new(DashMap::new)
 
 pub fn gpt_plugin() -> Plugin {
     let mut plugin = Plugin::new("GPT 插件", "使用 DeepSeek API 进行对话");
+
     for (description, command, max_tokens, reply_image) in [
         ("提问并获得文本答复", "#gpt", Some(512), false), // gpt 使用文本输出，需要文本内容较短
         ("提问并获得图片答复", "#igpt", None, true),      // igpt 使用图片输出，不需要限制 token
@@ -33,14 +34,15 @@ pub fn gpt_plugin() -> Plugin {
             description,
             i32::default(),
             Rule::on_group_message() & Rule::on_prefix(command),
-            move |ctx| {
-                Box::pin(call_deepseek_api(
-                    ctx.caller,
-                    ctx.event,
+            move |ctx| async move {
+                call_deepseek_api(
+                    ctx.caller.as_ref(),
+                    ctx.event.as_ref(),
                     command,
                     max_tokens,
                     reply_image,
-                ))
+                )
+                .await
             },
         )
     }
@@ -48,32 +50,30 @@ pub fn gpt_plugin() -> Plugin {
         "清除 GPT 的消息历史",
         i32::default(),
         Rule::on_group_message() & Rule::on_exact_match("#clear_gpt"),
-        move |ctx| {
-            Box::pin(async move {
-                let rw = database().rw_transaction()?;
-                for command in ["#gpt", "#igpt"] {
-                    let cache_key = format!("{}_{:?}_{}", command, ctx.event.group_id(), ctx.event.user_id());
-                    rw.remove::<Memory>(Memory::new(cache_key))?;
-                }
-                rw.commit()?;
-                ctx.caller
-                    .send_msg(SendMsgParams {
-                        message_type: None,
-                        user_id: Some(ctx.event.user_id()),
-                        group_id: ctx.event.group_id(),
-                        message: MessageContent::Segment(vec![
-                            MessageSegment::At {
-                                qq: ctx.event.user_id().to_string(),
-                            },
-                            MessageSegment::Text {
-                                text: " GPT 消息历史已清除".to_string(),
-                            },
-                        ]),
-                        auto_escape: true,
-                    })
-                    .await?;
-                Ok(true)
-            })
+        move |ctx| async move {
+            let rw = database().rw_transaction()?;
+            for command in ["#gpt", "#igpt"] {
+                let cache_key = format!("{}_{:?}_{}", command, ctx.event.group_id(), ctx.event.user_id());
+                rw.remove::<Memory>(Memory::new(cache_key))?;
+            }
+            rw.commit()?;
+            ctx.caller
+                .send_msg(SendMsgParams {
+                    message_type: None,
+                    user_id: Some(ctx.event.user_id()),
+                    group_id: ctx.event.group_id(),
+                    message: MessageContent::Segment(vec![
+                        MessageSegment::At {
+                            qq: ctx.event.user_id().to_string(),
+                        },
+                        MessageSegment::Text {
+                            text: " GPT 消息历史已清除".to_string(),
+                        },
+                    ]),
+                    auto_escape: true,
+                })
+                .await?;
+            Ok(true)
         },
     );
     plugin

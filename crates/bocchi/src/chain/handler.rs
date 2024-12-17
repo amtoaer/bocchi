@@ -1,14 +1,14 @@
-use std::{future::Future, pin::Pin};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use anyhow::Result;
 
 use crate::{adapter::Caller, plugin::Plugin, schema::Event};
 
-pub struct Context<'a> {
-    pub caller: &'a dyn Caller,
-    pub event: &'a Event,
-    pub plugins: &'a Vec<Plugin>,
+#[derive(Clone)]
+pub struct Context {
+    pub caller: Arc<dyn Caller>,
+    pub event: Arc<Event>,
+    pub plugins: Arc<Vec<Plugin>>,
 }
 
-pub type Handler =
-    Box<dyn for<'a> Fn(Context<'a>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send + 'a>> + Send + Sync>;
+pub type Handler = Box<dyn Fn(Context) -> Pin<Box<dyn Future<Output = Result<bool>> + Send>> + Send + Sync>;

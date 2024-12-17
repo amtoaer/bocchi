@@ -1,4 +1,4 @@
-use std::{borrow::Cow, future::Future, pin::Pin};
+use std::{borrow::Cow, future::Future};
 
 use anyhow::Result;
 
@@ -22,11 +22,12 @@ impl Bot {
         })
     }
 
-    pub fn on<D, M, H>(&mut self, description: D, priority: i32, matcher: M, handler: H)
+    pub fn on<D, M, H, Fut>(&mut self, description: D, priority: i32, matcher: M, handler: H)
     where
         D: Into<Cow<'static, str>>,
         M: Into<Matcher>,
-        H: for<'a> Fn(Context<'a>) -> Pin<Box<dyn Future<Output = Result<bool>> + Send + 'a>> + Send + Sync + 'static,
+        H: Fn(Context) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<bool>> + Send + 'static,
     {
         self.plugins[0].on(description, priority, matcher, handler);
     }
@@ -44,40 +45,32 @@ impl Bot {
             "显示帮助信息",
             i32::MAX,
             Rule::on_message() & Rule::on_exact_match("#help"),
-            |ctx| {
-                Box::pin(async move {
-                    let mut help_message =
-                        String::from("由 Rust 与 Tokio 驱动的机器人波奇酱！目前由如下插件提供服务：\n");
-                    let mut tab_str = 2;
-                    for plugin in ctx.plugins {
-                        help_message.push_str(&format!(
-                            "\n{}{} - {}\n",
-                            " ".repeat(tab_str),
-                            plugin.name,
-                            plugin.description
-                        ));
-                        tab_str += 2;
-                        for mu in plugin.match_unions() {
-                            help_message.push_str(&format!(
-                                "{}{} - {}\n",
-                                " ".repeat(tab_str),
-                                mu.matcher,
-                                mu.description
-                            ));
-                        }
-                        tab_str -= 2;
+            |ctx| async move {
+                let mut help_message = String::from("由 Rust 与 Tokio 驱动的机器人波奇酱！目前由如下插件提供服务：\n");
+                let mut tab_str = 2;
+                for plugin in ctx.plugins.as_ref() {
+                    help_message.push_str(&format!(
+                        "\n{}{} - {}\n",
+                        " ".repeat(tab_str),
+                        plugin.name,
+                        plugin.description
+                    ));
+                    tab_str += 2;
+                    for mu in plugin.match_unions() {
+                        help_message.push_str(&format!("{}{} - {}\n", " ".repeat(tab_str), mu.matcher, mu.description));
                     }
-                    ctx.caller
-                        .send_msg(SendMsgParams {
-                            user_id: Some(ctx.event.user_id()),
-                            group_id: ctx.event.group_id(),
-                            message: MessageContent::Text(help_message),
-                            auto_escape: true,
-                            message_type: None,
-                        })
-                        .await?;
-                    Ok(true)
-                })
+                    tab_str -= 2;
+                }
+                ctx.caller
+                    .send_msg(SendMsgParams {
+                        user_id: Some(ctx.event.user_id()),
+                        group_id: ctx.event.group_id(),
+                        message: MessageContent::Text(help_message),
+                        auto_escape: true,
+                        message_type: None,
+                    })
+                    .await?;
+                Ok(true)
             },
         );
     }

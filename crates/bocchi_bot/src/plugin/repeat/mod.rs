@@ -26,7 +26,7 @@ pub fn repeat_plugin() -> Plugin {
         Rule::on_group_message(),
         move |ctx| {
             let map_clone = map.clone();
-            Box::pin(async move {
+            async move {
                 // 因为 on_group_message 限制，group_id unwrap 是安全的
                 let (user_id, group_id) = (ctx.event.user_id(), ctx.event.group_id().unwrap());
                 let text = match ctx.event.message() {
@@ -78,7 +78,7 @@ pub fn repeat_plugin() -> Plugin {
                     }
                 };
                 Ok(false)
-            })
+            }
         },
     );
 
