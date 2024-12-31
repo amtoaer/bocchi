@@ -27,8 +27,7 @@ pub fn repeat_plugin() -> Plugin {
         move |ctx| {
             let map_clone = map.clone();
             async move {
-                // 因为 on_group_message 限制，group_id unwrap 是安全的
-                let (user_id, group_id) = (ctx.event.user_id(), ctx.event.group_id().unwrap());
+                let (user_id, group_id) = (ctx.event.user_id(), ctx.event.group_id());
                 let text = match ctx.event.message() {
                     MessageContent::Text(text) => text.to_string(),
                     MessageContent::Segment(segments) => {

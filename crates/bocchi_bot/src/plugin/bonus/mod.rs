@@ -25,7 +25,7 @@ pub fn bonus_plugin() -> Plugin {
             if point.last_update.date_naive() != chrono::Local::now().date_naive() {
                 got_point = rand::thread_rng().gen_range(1..=100);
                 point.point += got_point;
-                point.name = nickname;
+                point.name = nickname.to_owned();
                 point.last_update = chrono::Local::now();
                 rw.insert(point.clone())?;
             }
@@ -43,7 +43,7 @@ pub fn bonus_plugin() -> Plugin {
             ctx.caller
                 .send_msg(SendMsgParams {
                     user_id: Some(user_id),
-                    group_id: ctx.event.group_id(),
+                    group_id: ctx.event.try_group_id().ok(),
                     message: MessageContent::Segment(vec![
                         MessageSegment::Reply {
                             id: ctx.event.message_id().to_string(),
@@ -78,7 +78,7 @@ pub fn bonus_plugin() -> Plugin {
             ctx.caller
                 .send_msg(SendMsgParams {
                     user_id: Some(user_id),
-                    group_id: ctx.event.group_id(),
+                    group_id: ctx.event.try_group_id().ok(),
                     message: MessageContent::Segment(vec![
                         MessageSegment::Reply {
                             id: ctx.event.message_id().to_string(),

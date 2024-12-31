@@ -63,8 +63,8 @@ impl Bot {
                 }
                 ctx.caller
                     .send_msg(SendMsgParams {
-                        user_id: Some(ctx.event.user_id()),
-                        group_id: ctx.event.group_id(),
+                        user_id: ctx.event.try_user_id().ok(),
+                        group_id: ctx.event.try_group_id().ok(),
                         message: MessageContent::Text(help_message),
                         auto_escape: true,
                         message_type: None,

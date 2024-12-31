@@ -31,8 +31,8 @@ pub fn video_detail_plugin() -> Plugin {
                     .caller
                     .send_msg(SendMsgParams {
                         message_type: None,
-                        user_id: Some(ctx.event.user_id()),
-                        group_id: ctx.event.group_id(),
+                        user_id: ctx.event.try_user_id().ok(),
+                        group_id: ctx.event.try_group_id().ok(),
                         message,
                         auto_escape: true,
                     })
