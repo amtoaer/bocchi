@@ -74,3 +74,13 @@ pub async fn set_msg_emoji_like(connector: &dyn Caller, param: SetMsgEmojiLikePa
         .into_fallback()
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
+
+#[cfg(feature = "napcat")]
+pub async fn send_forward_msg(connector: &dyn Caller, param: SendForwardMsgParams) -> Result<SendForwardMsgResult> {
+    connector
+        .call(ApiRequest::new(RequestParams::SendForwardMsg(param)))
+        .await?
+        .data
+        .into_send_forward_msg()
+        .map_err(|e| ApiError::ResponseTypeError(e).into())
+}

@@ -24,8 +24,11 @@ pub trait Caller: Send + Sync {
     async fn delete_msg(&self, param: DeleteMsgParams) -> Result<serde_json::Value>;
     async fn get_msg(&self, param: GetMsgParams) -> Result<GetMsgResult>;
     async fn get_forward_msg(&self, param: GetForwardMsgParams) -> Result<GetForwardMsgResult>;
+
     #[cfg(feature = "napcat")]
     async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value>;
+    #[cfg(feature = "napcat")]
+    async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendForwardMsgResult>;
 }
 
 #[async_trait]

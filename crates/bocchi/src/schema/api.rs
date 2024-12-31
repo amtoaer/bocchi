@@ -46,7 +46,6 @@ pub struct SendMsgResult {
     /// 消息 ID
     pub message_id: i32,
 }
-
 /// 撤回消息的参数
 #[derive(Debug, Serialize)]
 pub struct DeleteMsgParams {
@@ -106,6 +105,29 @@ pub struct GetLoginInfoResult {
     pub nickname: String,
 }
 
+#[cfg(feature = "napcat")]
+#[derive(Debug, Serialize)]
+pub struct SendForwardMsgParams {
+    /// 消息类型，支持 private、group，分别对应私聊、群组，如不传入，则根据传入的 *_id 参数判断
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_type: Option<String>,
+    /// 对方 QQ 号（消息类型为 private 时需要）
+    pub user_id: Option<u64>,
+    /// 群号（消息类型为 group 时需要）
+    pub group_id: Option<u64>,
+    /// 要发送的内容
+    pub message: MessageContent,
+}
+
+#[cfg(feature = "napcat")]
+#[derive(Debug, Deserialize)]
+pub struct SendForwardMsgResult {
+    /// 消息 ID
+    pub message_id: i32,
+    /// 未知，文档里没有说明
+    pub resid: String,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "action", content = "params")]
 pub enum RequestParams {
@@ -116,8 +138,11 @@ pub enum RequestParams {
     DeleteMsg(DeleteMsgParams),
     GetMsg(GetMsgParams),
     GetForwardMsg(GetForwardMsgParams),
+
     #[cfg(feature = "napcat")]
     SetMsgEmojiLike(SetMsgEmojiLikeParams),
+    #[cfg(feature = "napcat")]
+    SendForwardMsg(SendForwardMsgParams),
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {
@@ -148,6 +173,9 @@ pub enum ResponseBody {
     GetMsg(GetMsgResult),
     GetForwardMsg(GetForwardMsgResult),
     Fallback(serde_json::Value),
+
+    #[cfg(feature = "napcat")]
+    SendForwardMsg(SendForwardMsgResult),
 }
 
 #[derive(Debug, Deserialize)]

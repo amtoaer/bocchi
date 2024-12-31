@@ -191,6 +191,11 @@ impl Caller for WsAdapter {
     async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value> {
         set_msg_emoji_like(self, param).await
     }
+
+    #[cfg(feature = "napcat")]
+    async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendForwardMsgResult> {
+        send_forward_msg(self, param).await
+    }
 }
 
 #[async_trait]

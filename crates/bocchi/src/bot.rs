@@ -6,7 +6,7 @@ use crate::{
     adapter::{self, Adapter},
     chain::{Context, Matcher, Rule},
     plugin::Plugin,
-    schema::{MessageContent, SendMsgParams},
+    schema::{MessageContent, MessageSegment, SendForwardMsgParams},
 };
 
 pub struct Bot {
@@ -40,7 +40,7 @@ impl Bot {
         self.adapter.spawn(self.plugins).await
     }
 
-    pub fn use_build_in_handler(&mut self) {
+    pub fn use_builtin_handler(&mut self) {
         self.on(
             "显示帮助信息",
             i32::MAX,
@@ -62,11 +62,15 @@ impl Bot {
                     tab_str -= 2;
                 }
                 ctx.caller
-                    .send_msg(SendMsgParams {
+                    .send_forward_msg(SendForwardMsgParams {
                         user_id: ctx.event.try_user_id().ok(),
                         group_id: ctx.event.try_group_id().ok(),
-                        message: MessageContent::Text(help_message),
-                        auto_escape: true,
+                        message: MessageContent::Segment(vec![MessageSegment::Node {
+                            id: None,
+                            user_id: None,
+                            nickname: None,
+                            content: Some(MessageContent::Text(help_message)),
+                        }]),
                         message_type: None,
                     })
                     .await?;

@@ -189,22 +189,22 @@ pub enum MessageSegment {
     },
     /// 合并转发节点
     Node {
-        /// 转发的消息 ID，仅发送
+        /// 转发的消息 ID
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(default)]
         id: Option<String>,
-        /// 发送者 QQ 号，仅接收
+        /// 发送者 QQ 号
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(default)]
         user_id: Option<String>,
-        /// 发送者昵称，仅接收
+        /// 发送者昵称
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(default)]
         nickname: Option<String>,
-        /// 消息内容，支持发送消息时的 `message` 数据类型，见 API 的参数，仅接收
+        /// 消息内容
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(default)]
-        content: Option<String>,
+        content: Option<MessageContent>,
     },
     /// XML 消息
     Xml {

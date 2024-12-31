@@ -26,7 +26,7 @@ fn init() {
 async fn main() -> Result<()> {
     init();
     let mut bot_instance = Bot::connect("ws://localhost:3001").await?;
-    bot_instance.use_build_in_handler();
+    bot_instance.use_builtin_handler();
     bot_instance.register_plugin(plugin::bonus_plugin());
     bot_instance.register_plugin(plugin::echo_plugin());
     bot_instance.register_plugin(plugin::gpt_plugin());
