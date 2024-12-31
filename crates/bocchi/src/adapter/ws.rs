@@ -84,7 +84,7 @@ impl Connector for WsAdapter {
                                     error!("Received response with unknown request ID: {text}");
                                 }
                             } else if let Ok(event) = serde_json::from_str::<Event>(&text) {
-                                info!("Receive event: {event:?}");
+                                dbg!("Receive event: {event:?}");
                                 let context = Context {
                                     caller: self.clone(),
                                     event: Arc::new(event),
