@@ -193,7 +193,7 @@ impl Caller for WsAdapter {
     }
 
     #[cfg(feature = "napcat")]
-    async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendForwardMsgResult> {
+    async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendMsgResult> {
         send_forward_msg(self, param).await
     }
 }

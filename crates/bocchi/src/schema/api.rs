@@ -119,15 +119,6 @@ pub struct SendForwardMsgParams {
     pub message: MessageContent,
 }
 
-#[cfg(feature = "napcat")]
-#[derive(Debug, Deserialize)]
-pub struct SendForwardMsgResult {
-    /// 消息 ID
-    pub message_id: i32,
-    /// 未知，文档里没有说明
-    pub resid: String,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "action", content = "params")]
 pub enum RequestParams {
@@ -173,9 +164,6 @@ pub enum ResponseBody {
     GetMsg(GetMsgResult),
     GetForwardMsg(GetForwardMsgResult),
     Fallback(serde_json::Value),
-
-    #[cfg(feature = "napcat")]
-    SendForwardMsg(SendForwardMsgResult),
 }
 
 #[derive(Debug, Deserialize)]

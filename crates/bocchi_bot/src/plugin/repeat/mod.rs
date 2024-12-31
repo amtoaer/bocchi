@@ -55,12 +55,12 @@ pub fn repeat_plugin() -> Plugin {
                 } else if !repeat.repeated {
                     repeat.users.insert(user_id);
                     if repeat.users.len() >= THRESHOLD {
-                        if let Some(inner_message) = repeat.message.take() {
+                        if let Some(inner_message) = &repeat.message {
                             ctx.caller
                                 .send_msg(SendMsgParams {
                                     user_id: None,
                                     group_id: Some(group_id),
-                                    message: inner_message,
+                                    message: inner_message.clone(),
                                     auto_escape: true,
                                     message_type: None,
                                 })

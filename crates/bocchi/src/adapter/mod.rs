@@ -28,7 +28,7 @@ pub trait Caller: Send + Sync {
     #[cfg(feature = "napcat")]
     async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value>;
     #[cfg(feature = "napcat")]
-    async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendForwardMsgResult>;
+    async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendMsgResult>;
 }
 
 #[async_trait]
