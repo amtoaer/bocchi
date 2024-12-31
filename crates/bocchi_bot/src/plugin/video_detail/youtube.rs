@@ -5,9 +5,12 @@ use serde::Deserialize;
 
 use crate::utils::HTTP_CLIENT;
 
-static YOUTUBE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})")
-        .unwrap()
+static YOUTUBE_VIDEO_REGEX: LazyLock<Vec<regex::Regex>> = LazyLock::new(|| {
+    vec![
+        regex::Regex::new(r"https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})")
+            .unwrap(),
+        regex::Regex::new(r"https?://(?:www\.)?(?:youtube\.com/shorts/|youtu\.be/)([a-zA-Z0-9_-]{11})").unwrap(),
+    ]
 });
 static YOUTUBE_API_KEY: LazyLock<String> = LazyLock::new(|| std::env::var("YOUTUBE_API_KEY").unwrap_or_default());
 
@@ -50,9 +53,13 @@ impl Thumbnails {
     }
 }
 
+fn parse_video_id(text: &str) -> Option<&str> {
+    YOUTUBE_VIDEO_REGEX
+        .iter()
+        .find_map(|re| re.captures(text).and_then(|cap| cap.get(1).map(|f| f.as_str())))
+}
 pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageContent> {
-    let caps = YOUTUBE_REGEX.captures(text)?;
-    let video_id = caps.get(1)?.as_str();
+    let video_id = parse_video_id(text)?;
     let url = format!(
         "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}",
         video_id,
@@ -98,23 +105,21 @@ mod tests {
 
     #[test]
     fn test_regex() {
-        let text = "https://www.youtube.com/watch?v=6g4dkBF5anU";
-        let caps = YOUTUBE_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "6g4dkBF5anU");
-
-        let text = "https://www.youtube.com/watch?v=6g4dkBF5anUabcdefg";
-        let caps = YOUTUBE_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "6g4dkBF5anU");
-
-        let text = "https://www.youtube.com/watch?v=6g4dkBF5an";
-        assert!(YOUTUBE_REGEX.captures(text).is_none());
-
-        let text = "https://youtu.be/6g4dkBF5anU";
-        let caps = YOUTUBE_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "6g4dkBF5anU");
-
-        let text = "https://www.youtube.com/embed/6g4dkBF5anU";
-        let caps = YOUTUBE_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "6g4dkBF5anU");
+        let testcases = [
+            ("https://www.youtube.com/watch?v=6g4dkBF5anU", Some("6g4dkBF5anU")),
+            (
+                "https://www.youtube.com/watch?v=6g4dkBF5anUabcdefg",
+                Some("6g4dkBF5anU"),
+            ),
+            ("https://www.youtube.com/watch?v=6g4dkBF5an", None),
+            ("https://youtu.be/6g4dkBF5anU", Some("6g4dkBF5anU")),
+            ("https://www.youtube.com/embed/6g4dkBF5anU", Some("6g4dkBF5anU")),
+            ("https://www.youtube.com/shorts/6g4dkBF5anU", Some("6g4dkBF5anU")),
+            ("https://www.youtube.com/shorts/6g4dkBF5anUabcdefg", Some("6g4dkBF5anU")),
+            ("https://www.youtube.com/shorts/6g4dkBF5an", None),
+        ];
+        for (text, expected) in testcases.iter() {
+            assert_eq!(parse_video_id(text), *expected);
+        }
     }
 }
