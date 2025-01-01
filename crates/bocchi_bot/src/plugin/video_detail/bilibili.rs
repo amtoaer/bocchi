@@ -9,9 +9,14 @@ static BILIBILI_AV_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/av(\d+)").unwrap());
 static BILIBILI_BV_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/(BV[a-zA-Z0-9_-]{10})").unwrap());
-static BILIBILI_B23_REGEX: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(https?://(?:www\.)?b23\.tv/[a-zA-Z0-9_-]{7})").unwrap());
+static BILIBILI_SHORT_URL_REGEX: LazyLock<Vec<regex::Regex>> = LazyLock::new(|| {
+    vec![
+        regex::Regex::new(r"https?://(?:www\.)?b23\.tv/[a-zA-Z0-9_-]{7}").unwrap(), // 移动端短链接
+        regex::Regex::new(r"https?://(?:www\.)?bili2233\.cn/[a-zA-Z0-9_-]{7}").unwrap(), // 国际版移动端短链接
+    ]
+});
 
+#[derive(Debug, PartialEq)]
 enum VideoID {
     AV(String),
     BV(String),
@@ -41,14 +46,19 @@ fn parse_raw_video_id(text: &str) -> Option<VideoID> {
     }
 }
 
+fn parse_short_url(text: &str) -> Option<&str> {
+    BILIBILI_SHORT_URL_REGEX
+        .iter()
+        .find_map(|re| re.find(text).map(|m| m.as_str()))
+}
+
 async fn parse_video_id(text: &str) -> Option<VideoID> {
     // 尝试直接从文本解析
     let res = parse_raw_video_id(text);
     if res.is_some() {
         return res;
     }
-    let caps = BILIBILI_B23_REGEX.captures(text)?;
-    let url = caps.get(1)?.as_str();
+    let url = parse_short_url(text)?;
     // FIXME: 此处的需求只是获取 302 后的 URL，但由于 reqwest 会自动重定向，这里会多一次最终的 200 请求
     // 可以在 ClientBuilder 中设置 redirect_policy 为 none 来禁用自动重定向，但是这样会导致其它地方的重定向也失效
     // 暂时先这样处理，后续如果 https://github.com/seanmonstar/reqwest/pull/2440 被合并，可以单独为此处请求设置不重定向然后取 Location Header
@@ -110,27 +120,36 @@ mod tests {
 
     #[test]
     fn test_regex() {
-        let text = "https://www.bilibili.com/video/BV12T2mYiEyy/";
-        let caps = BILIBILI_BV_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "BV12T2mYiEyy");
+        let testcases = [
+            (
+                "https://www.bilibili.com/video/BV12T2mYiEyy/",
+                Some(VideoID::BV("BV12T2mYiEyy".to_owned())),
+            ),
+            (
+                "https://www.bilibili.com/video/av113385693775046?p=1",
+                Some(VideoID::AV("113385693775046".to_owned())),
+            ),
+            (
+                "https://www.bilibili.com/video/BV12T2mYiEyya/",
+                Some(VideoID::BV("BV12T2mYiEyy".to_owned())),
+            ),
+            ("https://www.bilibili.com/video/BV12T2mYiEy", None),
+            (
+                "http://bilibili.com/video/BV12T2mYiEyy/",
+                Some(VideoID::BV("BV12T2mYiEyy".to_owned())),
+            ),
+        ];
+        for (text, expected) in testcases.into_iter() {
+            assert_eq!(parse_raw_video_id(text), expected)
+        }
 
-        let text = "https://www.bilibili.com/video/av113385693775046?p=1";
-        let caps = BILIBILI_AV_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "113385693775046");
-
-        let text = "https://www.bilibili.com/video/BV12T2mYiEyya/";
-        let caps = BILIBILI_BV_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "BV12T2mYiEyy");
-
-        let text = "https://www.bilibili.com/video/BV12T2mYiEy";
-        assert!(BILIBILI_BV_REGEX.captures(text).is_none());
-
-        let text = "http://bilibili.com/video/BV12T2mYiEyy/";
-        let caps = BILIBILI_BV_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "BV12T2mYiEyy");
-
-        let text = "https://b23.tv/8iZPsI3";
-        let caps = BILIBILI_B23_REGEX.captures(text).unwrap();
-        assert_eq!(caps.get(1).unwrap().as_str(), "https://b23.tv/8iZPsI3");
+        let testcases = [
+            ("https://b23.tv/8iZPsI3", Some("https://b23.tv/8iZPsI3")),
+            ("https://bili2233.cn/EpD7Vwu", Some("https://bili2233.cn/EpD7Vwu")),
+            ("https://bili2233.cn/EpD7Vw", None),
+        ];
+        for (text, expected) in testcases.into_iter() {
+            assert_eq!(parse_short_url(text), expected)
+        }
     }
 }
