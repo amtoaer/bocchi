@@ -3,7 +3,7 @@ use std::fmt::Display;
 use bocchi::{
     chain::Rule,
     plugin::Plugin,
-    schema::{MessageContent, SendMsgParams},
+    schema::{MessageContent, MessageSegment, SendForwardMsgParams},
 };
 use futures::{stream::FuturesOrdered, StreamExt};
 use serde::Deserialize;
@@ -67,11 +67,15 @@ pub fn hacker_news_plugin() -> Plugin {
                 }
             }
             ctx.caller
-                .send_msg(SendMsgParams {
+                .send_forward_msg(SendForwardMsgParams {
                     user_id: ctx.event.try_user_id().ok(),
                     group_id: ctx.event.try_group_id().ok(),
-                    message: MessageContent::Text(res),
-                    auto_escape: true,
+                    message: MessageContent::Segment(vec![MessageSegment::Node {
+                        id: None,
+                        user_id: None,
+                        nickname: None,
+                        content: Some(MessageContent::Text(res)),
+                    }]),
                     message_type: None,
                 })
                 .await?;
