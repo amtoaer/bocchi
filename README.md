@@ -4,6 +4,9 @@
     <img src="assets/logo.gif" width="350">
 </p>
 
+> [!CAUTION]
+> 机器人账号被藤子拿下多次，暂时停更。
+
 ## 简介
 > [!IMPORTANT]
 > 项目仍处于开发阶段，API 可能会在未通知的情况下发生变化。
