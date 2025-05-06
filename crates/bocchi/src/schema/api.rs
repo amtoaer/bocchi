@@ -92,8 +92,16 @@ pub struct GetForwardMsgResult {
 }
 
 /// 发送表情回应的参数
+#[cfg(feature = "napcat")]
 #[derive(Debug, Serialize)]
 pub struct SetMsgEmojiLikeParams {
+    pub message_id: i32,
+    pub emoji_id: i32,
+}
+
+#[cfg(feature = "go-cqhttp")]
+#[derive(Debug, Serialize)]
+pub struct SetGroupReactionParams {
     pub message_id: i32,
     pub emoji_id: i32,
 }
@@ -105,7 +113,7 @@ pub struct GetLoginInfoResult {
     pub nickname: String,
 }
 
-#[cfg(feature = "napcat")]
+#[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
 #[derive(Debug, Serialize)]
 pub struct SendForwardMsgParams {
     /// 消息类型，支持 private、group，分别对应私聊、群组，如不传入，则根据传入的 *_id 参数判断
@@ -116,7 +124,7 @@ pub struct SendForwardMsgParams {
     /// 群号（消息类型为 group 时需要）
     pub group_id: Option<u64>,
     /// 要发送的内容
-    pub message: MessageContent,
+    pub messages: MessageContent,
 }
 
 #[derive(Debug, Serialize)]
@@ -130,10 +138,14 @@ pub enum RequestParams {
     GetMsg(GetMsgParams),
     GetForwardMsg(GetForwardMsgParams),
 
+    #[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
+    SendForwardMsg(SendForwardMsgParams),
+
     #[cfg(feature = "napcat")]
     SetMsgEmojiLike(SetMsgEmojiLikeParams),
-    #[cfg(feature = "napcat")]
-    SendForwardMsg(SendForwardMsgParams),
+
+    #[cfg(feature = "go-cqhttp")]
+    SetGroupReaction(SetGroupReactionParams),
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {

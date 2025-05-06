@@ -75,7 +75,17 @@ pub async fn set_msg_emoji_like(connector: &dyn Caller, param: SetMsgEmojiLikePa
         .map_err(|e| ApiError::ResponseTypeError(e).into())
 }
 
-#[cfg(feature = "napcat")]
+#[cfg(feature = "go-cqhttp")]
+pub async fn set_group_reaction(connector: &dyn Caller, param: SetGroupReactionParams) -> Result<serde_json::Value> {
+    connector
+        .call(ApiRequest::new(RequestParams::SetGroupReaction(param)))
+        .await?
+        .data
+        .into_fallback()
+        .map_err(|e| ApiError::ResponseTypeError(e).into())
+}
+
+#[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
 pub async fn send_forward_msg(connector: &dyn Caller, param: SendForwardMsgParams) -> Result<SendMsgResult> {
     connector
         .call(ApiRequest::new(RequestParams::SendForwardMsg(param)))

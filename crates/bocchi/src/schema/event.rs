@@ -121,6 +121,14 @@ impl<'a> Event {
         }
     }
 
+    /// 仅在私聊消息中返回 Ok(user_id)，否则返回 Err
+    pub fn try_private_user_id(&self) -> Result<u64> {
+        match self {
+            Self::PrivateMessage(PrivateMessage { user_id, .. }) => Ok(*user_id),
+            _ => bail!("Event::try_private_user_id() called on non-private-message event"),
+        }
+    }
+
     pub fn user_id(&self) -> u64 {
         self.try_user_id().unwrap()
     }

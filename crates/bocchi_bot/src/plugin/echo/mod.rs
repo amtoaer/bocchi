@@ -23,7 +23,7 @@ pub fn echo_plugin() -> Plugin {
                 let msg = MessageContent::Text(plain_text);
                 ctx.caller
                     .send_msg(SendMsgParams {
-                        user_id: Some(ctx.event.user_id()),
+                        user_id: ctx.event.try_private_user_id().ok(),
                         group_id: ctx.event.try_group_id().ok(),
                         message: msg,
                         auto_escape: true,

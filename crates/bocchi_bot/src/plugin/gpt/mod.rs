@@ -6,7 +6,7 @@ use bocchi::{
     adapter::Caller,
     chain::Rule,
     plugin::Plugin,
-    schema::{Emoji, Event, MessageContent, MessageSegment, SendMsgParams, SetMsgEmojiLikeParams},
+    schema::{Emoji, Event, MessageContent, MessageSegment, SendMsgParams, SetGroupReactionParams},
 };
 use dashmap::DashMap;
 use serde_json::{json, Value};
@@ -63,7 +63,7 @@ pub fn gpt_plugin() -> Plugin {
             ctx.caller
                 .send_msg(SendMsgParams {
                     message_type: None,
-                    user_id: Some(user_id),
+                    user_id: ctx.event.try_private_user_id().ok(),
                     group_id: optional_group_id,
                     message: MessageContent::Segment(vec![
                         MessageSegment::At {
@@ -94,7 +94,7 @@ async fn call_deepseek_api(
         return Ok(false);
     }
     caller
-        .set_msg_emoji_like(SetMsgEmojiLikeParams {
+        .set_group_reaction(SetGroupReactionParams {
             message_id: event.message_id(),
             emoji_id: Emoji::敬礼_1.id(),
         })
@@ -172,7 +172,7 @@ async fn call_deepseek_api(
         MessageSegment::Text { text }
     };
     caller
-        .set_msg_emoji_like(SetMsgEmojiLikeParams {
+        .set_group_reaction(SetGroupReactionParams {
             message_id: event.message_id(),
             emoji_id: emoji.id(),
         })
@@ -180,7 +180,7 @@ async fn call_deepseek_api(
     caller
         .send_msg(SendMsgParams {
             message_type: None,
-            user_id: Some(user_id),
+            user_id: event.try_private_user_id().ok(),
             group_id: optional_group_id,
             message: MessageContent::Segment(vec![
                 MessageSegment::Reply {

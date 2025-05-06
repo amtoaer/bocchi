@@ -33,7 +33,7 @@ pub fn url_detail_plugin() -> Plugin {
                     .caller
                     .send_msg(SendMsgParams {
                         message_type: None,
-                        user_id: ctx.event.try_user_id().ok(),
+                        user_id: ctx.event.try_private_user_id().ok(),
                         group_id: ctx.event.try_group_id().ok(),
                         message,
                         auto_escape: true,

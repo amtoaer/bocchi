@@ -26,7 +26,7 @@ pub fn select_plugin() -> Plugin {
                 if let Some(choice) = choice {
                     ctx.caller
                         .send_msg(SendMsgParams {
-                            user_id: ctx.event.try_user_id().ok(),
+                            user_id: ctx.event.try_private_user_id().ok(),
                             group_id: ctx.event.try_group_id().ok(),
                             message: MessageContent::Segment(vec![
                                 MessageSegment::Reply {

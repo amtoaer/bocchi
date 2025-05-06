@@ -63,12 +63,12 @@ impl Bot {
                 }
                 ctx.caller
                     .send_forward_msg(SendForwardMsgParams {
-                        user_id: ctx.event.try_user_id().ok(),
+                        user_id: ctx.event.try_private_user_id().ok(),
                         group_id: ctx.event.try_group_id().ok(),
-                        message: MessageContent::Segment(vec![MessageSegment::Node {
+                        messages: MessageContent::Segment(vec![MessageSegment::Node {
                             id: None,
-                            user_id: None,
-                            nickname: None,
+                            user_id: ctx.event.try_user_id().ok().map(|id| id.to_string()),
+                            nickname: ctx.event.sender().nickname.clone(),
                             content: Some(MessageContent::Text(help_message)),
                         }]),
                         message_type: None,

@@ -42,7 +42,7 @@ pub fn bonus_plugin() -> Plugin {
             };
             ctx.caller
                 .send_msg(SendMsgParams {
-                    user_id: Some(user_id),
+                    user_id: ctx.event.try_private_user_id().ok(),
                     group_id: ctx.event.try_group_id().ok(),
                     message: MessageContent::Segment(vec![
                         MessageSegment::Reply {
@@ -77,7 +77,7 @@ pub fn bonus_plugin() -> Plugin {
             };
             ctx.caller
                 .send_msg(SendMsgParams {
-                    user_id: Some(user_id),
+                    user_id: ctx.event.try_private_user_id().ok(),
                     group_id: ctx.event.try_group_id().ok(),
                     message: MessageContent::Segment(vec![
                         MessageSegment::Reply {

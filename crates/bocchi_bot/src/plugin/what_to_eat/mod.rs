@@ -80,7 +80,7 @@ pub fn what_to_eat_plugin() -> Plugin {
             };
             ctx.caller
                 .send_msg(SendMsgParams {
-                    user_id: ctx.event.try_user_id().ok(),
+                    user_id: ctx.event.try_private_user_id().ok(),
                     group_id: ctx.event.try_group_id().ok(),
                     message: msg,
                     auto_escape: true,

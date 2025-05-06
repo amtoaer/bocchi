@@ -192,9 +192,14 @@ impl Caller for WsAdapter {
         set_msg_emoji_like(self, param).await
     }
 
-    #[cfg(feature = "napcat")]
+    #[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
     async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendMsgResult> {
         send_forward_msg(self, param).await
+    }
+
+    #[cfg(feature = "go-cqhttp")]
+    async fn set_group_reaction(&self, param: SetGroupReactionParams) -> Result<serde_json::Value> {
+        set_group_reaction(self, param).await
     }
 }
 

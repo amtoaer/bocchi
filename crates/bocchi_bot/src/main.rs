@@ -25,15 +25,18 @@ fn init() {
 #[tokio::main]
 async fn main() -> Result<()> {
     init();
-    let mut bot_instance = Bot::connect("ws://localhost:3001").await?;
-    bot_instance.use_builtin_handler();
-    bot_instance.register_plugin(plugin::bonus_plugin());
-    bot_instance.register_plugin(plugin::echo_plugin());
-    bot_instance.register_plugin(plugin::gpt_plugin());
-    bot_instance.register_plugin(plugin::repeat_plugin());
-    bot_instance.register_plugin(plugin::hacker_news_plugin());
-    bot_instance.register_plugin(plugin::what_to_eat_plugin());
-    bot_instance.register_plugin(plugin::url_detail_plugin());
-    bot_instance.register_plugin(plugin::select_plugin());
-    bot_instance.start().await
+    let mut bot = Bot::connect("ws://localhost:3001").await?;
+    bot.use_builtin_handler();
+    for plugin in [
+        plugin::bonus_plugin(),
+        plugin::echo_plugin(),
+        plugin::gpt_plugin(),
+        plugin::hacker_news_plugin(),
+        plugin::what_to_eat_plugin(),
+        plugin::url_detail_plugin(),
+        plugin::select_plugin(),
+    ] {
+        bot.register_plugin(plugin);
+    }
+    bot.start().await
 }
