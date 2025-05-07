@@ -86,7 +86,7 @@ impl Connector for WsAdapter {
                             } else if let Ok(event) = serde_json::from_str::<Event>(&text) {
                                 debug!("Receive event: {event:?}");
                                 let context = Context {
-                                    caller: self.clone(),
+                                    caller: self.clone() as Arc<dyn Caller>,
                                     event: Arc::new(event),
                                     plugins: plugins.clone(),
                                 };
@@ -160,46 +160,46 @@ impl Caller for WsAdapter {
     }
 
     async fn get_login_info(&self) -> Result<GetLoginInfoResult> {
-        get_login_info(self).await
+        get_login_info(self as &dyn Caller).await
     }
 
     async fn send_private_msg(&self, param: SendPrivateMsgParams) -> Result<SendMsgResult> {
-        send_private_msg(self, param).await
+        send_private_msg(self as &dyn Caller, param).await
     }
 
     async fn send_group_msg(&self, param: SendGroupMsgParams) -> Result<SendMsgResult> {
-        send_group_msg(self, param).await
+        send_group_msg(self as &dyn Caller, param).await
     }
 
     async fn send_msg(&self, param: SendMsgParams) -> Result<SendMsgResult> {
-        send_msg(self, param).await
+        send_msg(self as &dyn Caller, param).await
     }
 
     async fn delete_msg(&self, param: DeleteMsgParams) -> Result<serde_json::Value> {
-        delete_msg(self, param).await
+        delete_msg(self as &dyn Caller, param).await
     }
 
     async fn get_msg(&self, param: GetMsgParams) -> Result<GetMsgResult> {
-        get_msg(self, param).await
+        get_msg(self as &dyn Caller, param).await
     }
 
     async fn get_forward_msg(&self, param: GetForwardMsgParams) -> Result<GetForwardMsgResult> {
-        get_forward_msg(self, param).await
+        get_forward_msg(self as &dyn Caller, param).await
     }
 
     #[cfg(feature = "napcat")]
     async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value> {
-        set_msg_emoji_like(self, param).await
+        set_msg_emoji_like(self as &dyn Caller, param).await
     }
 
     #[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
     async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendMsgResult> {
-        send_forward_msg(self, param).await
+        send_forward_msg(self as &dyn Caller, param).await
     }
 
     #[cfg(feature = "go-cqhttp")]
     async fn set_group_reaction(&self, param: SetGroupReactionParams) -> Result<serde_json::Value> {
-        set_group_reaction(self, param).await
+        set_group_reaction(self as &dyn Caller, param).await
     }
 }
 
