@@ -1,11 +1,8 @@
 <h1 align="center">- bocchi -</h1>
 
 <p align="center">
-    <img src="assets/logo.gif" width="350">
+    <img src="assets/logo.webp" width="350">
 </p>
-
-> [!CAUTION]
-> 机器人账号被藤子拿下多次，暂时停更。
 
 ## 简介
 > [!IMPORTANT]
