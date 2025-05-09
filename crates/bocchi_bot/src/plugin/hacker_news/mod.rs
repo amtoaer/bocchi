@@ -1,9 +1,6 @@
 use std::fmt::Display;
 
-use bocchi::{
-    chain::Rule,
-    plugin::Plugin,
-};
+use bocchi::{chain::Rule, plugin::Plugin};
 use futures::{stream::FuturesOrdered, StreamExt};
 use serde::Deserialize;
 
@@ -20,7 +17,7 @@ impl Display for HackerStory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "标题: {}\n链接：{}\n评论：https://news.ycombinator.com/item?id={}",
+            "标题：{}\n链接：{}\n评论：https://news.ycombinator.com/item?id={}",
             self.title, self.url, self.id,
         )
     }
@@ -41,7 +38,7 @@ pub fn hacker_news_plugin() -> Plugin {
                 .error_for_status()?
                 .json::<Vec<i64>>()
                 .await?;
-            let mut future_ordered = ids
+            let future_ordered = ids
                 .into_iter()
                 .take(10)
                 .map(|id| async move {
@@ -54,18 +51,13 @@ pub fn hacker_news_plugin() -> Plugin {
                         .await
                 })
                 .collect::<FuturesOrdered<_>>();
-            let mut res = String::from("好的，如下是 Hacker News top 10 的内容：");
-            while let Some(story) = future_ordered.next().await {
-                match story {
-                    Ok(story) => {
-                        res.push_str(&format!("\n\n{}", story));
-                    }
-                    Err(e) => {
-                        error!("获取 Hacker News 内容失败：{}", e);
-                    }
-                }
-            }
-            ctx.send_forward(vec![res]).await?;
+            let res = future_ordered
+                .collect::<Vec<_>>()
+                .await
+                .into_iter()
+                .filter_map(|story| story.ok().map(|story| story.to_string()))
+                .collect::<Vec<_>>();
+            ctx.send_forward(res).await?;
             Ok(true)
         },
     );
