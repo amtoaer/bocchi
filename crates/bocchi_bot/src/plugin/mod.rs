@@ -1,4 +1,5 @@
 mod bonus;
+mod docker;
 mod echo;
 mod gpt;
 mod hacker_news;
@@ -7,6 +8,7 @@ mod url_detail;
 mod what_to_eat;
 
 pub use bonus::bonus_plugin;
+pub use docker::docker_plugin;
 pub use echo::echo_plugin;
 pub use gpt::gpt_plugin;
 pub use hacker_news::hacker_news_plugin;

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, future::Future, sync::Arc};
+use std::{borrow::Cow, future::Future, pin::Pin, sync::Arc};
 
 use anyhow::Result;
 
@@ -30,7 +30,7 @@ impl Plugin {
             description.into(),
             priority,
             matcher.into(),
-            Box::new(move |ctx| Box::pin(handler(ctx))),
+            Box::new(move |ctx| Box::pin(handler(ctx)) as Pin<Box<dyn Future<Output = Result<bool>> + Send + 'static>>),
         )));
     }
 

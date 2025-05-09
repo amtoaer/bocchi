@@ -35,6 +35,7 @@ async fn main() -> Result<()> {
         plugin::what_to_eat_plugin(),
         plugin::url_detail_plugin(),
         plugin::select_plugin(),
+        plugin::docker_plugin(),
     ] {
         bot.register_plugin(plugin);
     }
