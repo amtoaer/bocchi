@@ -3,10 +3,9 @@ use std::{env, sync::LazyLock};
 use anyhow::{Error, Result};
 use async_tempfile::TempFile;
 use bocchi::{
-    adapter::Caller,
-    chain::Rule,
+    chain::{Context, Rule},
     plugin::Plugin,
-    schema::{Emoji, Event, MessageContent, MessageSegment, SendMsgParams, SetGroupReactionParams},
+    schema::{Emoji, MessageSegment},
 };
 use dashmap::DashMap;
 use serde_json::{json, Value};
@@ -34,16 +33,7 @@ pub fn gpt_plugin() -> Plugin {
             description,
             i32::default(),
             Rule::on_group_message() & Rule::on_prefix(command),
-            move |ctx| async move {
-                call_deepseek_api(
-                    ctx.caller.as_ref(),
-                    ctx.event.as_ref(),
-                    command,
-                    max_tokens,
-                    reply_image,
-                )
-                .await
-            },
+            move |ctx| async move { call_deepseek_api(ctx, command, max_tokens, reply_image).await },
         )
     }
     plugin.on(
@@ -60,22 +50,7 @@ pub fn gpt_plugin() -> Plugin {
                 rw.remove::<Memory>(Memory::new(cache_key))?;
             }
             rw.commit()?;
-            ctx.caller
-                .send_msg(SendMsgParams {
-                    message_type: None,
-                    user_id: ctx.event.try_private_user_id().ok(),
-                    group_id: optional_group_id,
-                    message: MessageContent::Segment(vec![
-                        MessageSegment::At {
-                            qq: user_id.to_string(),
-                        },
-                        MessageSegment::Text {
-                            text: " GPT 消息历史已清除".to_string(),
-                        },
-                    ]),
-                    auto_escape: true,
-                })
-                .await?;
+            ctx.reply("GPT 消息历史已清除").await?;
             Ok(true)
         },
     );
@@ -83,23 +58,23 @@ pub fn gpt_plugin() -> Plugin {
 }
 
 async fn call_deepseek_api(
-    caller: &dyn Caller,
-    event: &Event,
+    ctx: Context,
     command: &'static str,
     max_tokens: Option<i32>,
     reply_image: bool,
 ) -> Result<bool> {
-    let text = event.plain_text().trim().trim_start_matches(command).trim().to_owned();
+    let text = ctx
+        .event
+        .plain_text()
+        .trim()
+        .trim_start_matches(command)
+        .trim()
+        .to_owned();
     if text.is_empty() {
         return Ok(false);
     }
-    caller
-        .set_group_reaction(SetGroupReactionParams {
-            message_id: event.message_id(),
-            emoji_id: Emoji::敬礼_1.id(),
-        })
-        .await?;
-    let (user_id, optional_group_id) = (event.user_id(), event.try_group_id().ok());
+    ctx.set_reaction(Emoji::敬礼_1).await?;
+    let (user_id, optional_group_id) = (ctx.event.user_id(), ctx.event.try_group_id().ok());
     let cache_key = format!("{}_{:?}_{}", command, optional_group_id, user_id);
     let lock = LOCKS.entry(cache_key.clone()).or_default();
     let _guard = lock.lock().await;
@@ -110,7 +85,7 @@ async fn call_deepseek_api(
         .unwrap_or_else(|| Memory::new(cache_key.clone()));
     drop(r);
     memory.history.push_back(CachedMessage {
-        sender: Some(event.sender().clone()),
+        sender: Some(ctx.event.sender().clone()),
         content: text,
     });
     let resp_text = async {
@@ -171,25 +146,7 @@ async fn call_deepseek_api(
     } else {
         MessageSegment::Text { text }
     };
-    caller
-        .set_group_reaction(SetGroupReactionParams {
-            message_id: event.message_id(),
-            emoji_id: emoji.id(),
-        })
-        .await?;
-    caller
-        .send_msg(SendMsgParams {
-            message_type: None,
-            user_id: event.try_private_user_id().ok(),
-            group_id: optional_group_id,
-            message: MessageContent::Segment(vec![
-                MessageSegment::Reply {
-                    id: event.message_id().to_string(),
-                },
-                message,
-            ]),
-            auto_escape: true,
-        })
-        .await?;
+    ctx.set_reaction(emoji).await?;
+    ctx.reply_content(vec![message]).await?;
     res
 }

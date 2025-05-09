@@ -1,7 +1,6 @@
 use bocchi::{
     chain::Rule,
     plugin::Plugin,
-    schema::{MessageContent, MessageSegment, SendMsgParams},
 };
 use rand::seq::SliceRandom;
 
@@ -24,22 +23,7 @@ pub fn select_plugin() -> Plugin {
             if !choices.is_empty() {
                 let choice = choices.choose(&mut rand::thread_rng());
                 if let Some(choice) = choice {
-                    ctx.caller
-                        .send_msg(SendMsgParams {
-                            user_id: ctx.event.try_private_user_id().ok(),
-                            group_id: ctx.event.try_group_id().ok(),
-                            message: MessageContent::Segment(vec![
-                                MessageSegment::Reply {
-                                    id: ctx.event.message_id().to_string(),
-                                },
-                                MessageSegment::Text {
-                                    text: choice.to_string(),
-                                },
-                            ]),
-                            auto_escape: true,
-                            message_type: None,
-                        })
-                        .await?;
+                    ctx.reply(choice.to_string()).await?;
                 }
             }
             Ok(true)

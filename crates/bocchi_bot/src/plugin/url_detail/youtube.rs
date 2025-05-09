@@ -1,6 +1,6 @@
 use std::{sync::LazyLock, time::Duration};
 
-use bocchi::schema::{MessageContent, MessageSegment};
+use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 
 use crate::utils::HTTP_CLIENT;
@@ -58,7 +58,7 @@ fn parse_video_id(text: &str) -> Option<&str> {
         .iter()
         .find_map(|re| re.captures(text).and_then(|cap| cap.get(1).map(|f| f.as_str())))
 }
-pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageContent> {
+pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     let video_id = parse_video_id(text)?;
     let url = format!(
         "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}",
@@ -76,9 +76,7 @@ pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageCon
         .ok()?;
     let first_item = resp.get("items")?.as_array()?.first()?.get("snippet")?.clone();
     let video_detail: VideoDetail = serde_json::from_value(first_item).ok()?;
-    let mut message_segment = vec![MessageSegment::Reply {
-        id: message_id.to_string(),
-    }];
+    let mut message_segment = Vec::new();
     if let Some(thumbnail_url) = video_detail.thumbnails.get() {
         message_segment.push(MessageSegment::Image {
             file: thumbnail_url.to_owned(),
@@ -95,7 +93,7 @@ pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageCon
             video_detail.title, video_detail.channel_title, video_detail.published_at
         ),
     });
-    Some(MessageContent::Segment(message_segment))
+    Some(message_segment)
 }
 
 #[cfg(test)]

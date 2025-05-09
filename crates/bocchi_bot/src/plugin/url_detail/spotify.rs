@@ -1,7 +1,7 @@
 use std::{sync::LazyLock, time::Duration};
 
 use anyhow::Result;
-use bocchi::schema::{MessageContent, MessageSegment};
+use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 
@@ -115,7 +115,7 @@ fn parse_track_id(text: &str) -> Option<&str> {
         .captures(text)
         .and_then(|cap| cap.get(1).map(|f| f.as_str()))
 }
-pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageContent> {
+pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     let track_id = parse_track_id(text)?;
     let url = format!("https://api.spotify.com/v1/tracks/{}", track_id);
     let token = match get_spotify_token().await {
@@ -135,9 +135,7 @@ pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageCon
         .json::<TrackDetail>()
         .await
         .ok()?;
-    let mut message_segment = vec![MessageSegment::Reply {
-        id: message_id.to_string(),
-    }];
+    let mut message_segment = Vec::new();
     if let Some(image_url) = resp.album.get_image() {
         message_segment.push(MessageSegment::Image {
             file: image_url.to_owned(),
@@ -157,7 +155,7 @@ pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageCon
             resp.album.get_release_date()
         ),
     });
-    Some(MessageContent::Segment(message_segment))
+    Some(message_segment)
 }
 
 #[cfg(test)]

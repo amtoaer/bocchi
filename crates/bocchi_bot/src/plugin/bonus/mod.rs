@@ -1,7 +1,6 @@
 use bocchi::{
     chain::Rule,
     plugin::Plugin,
-    schema::{MessageContent, MessageSegment, SendMsgParams},
 };
 use rand::Rng;
 
@@ -40,20 +39,7 @@ pub fn bonus_plugin() -> Plugin {
             } else {
                 "今天已经签到过了，请明天再来～".to_string()
             };
-            ctx.caller
-                .send_msg(SendMsgParams {
-                    user_id: ctx.event.try_private_user_id().ok(),
-                    group_id: ctx.event.try_group_id().ok(),
-                    message: MessageContent::Segment(vec![
-                        MessageSegment::Reply {
-                            id: ctx.event.message_id().to_string(),
-                        },
-                        MessageSegment::Text { text: msg },
-                    ]),
-                    auto_escape: true,
-                    message_type: None,
-                })
-                .await?;
+            ctx.reply(msg).await?;
             Ok(true)
         },
     );
@@ -75,20 +61,7 @@ pub fn bonus_plugin() -> Plugin {
                 ),
                 None => "你还没有签到过哦，发送 #bonus 进行第一次签到吧！".to_string(),
             };
-            ctx.caller
-                .send_msg(SendMsgParams {
-                    user_id: ctx.event.try_private_user_id().ok(),
-                    group_id: ctx.event.try_group_id().ok(),
-                    message: MessageContent::Segment(vec![
-                        MessageSegment::Reply {
-                            id: ctx.event.message_id().to_string(),
-                        },
-                        MessageSegment::Text { text: msg },
-                    ]),
-                    auto_escape: true,
-                    message_type: None,
-                })
-                .await?;
+            ctx.reply(msg).await?;
             Ok(true)
         },
     );

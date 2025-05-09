@@ -1,10 +1,6 @@
 use std::{path::PathBuf, sync::LazyLock};
 
-use bocchi::{
-    chain::Rule,
-    plugin::Plugin,
-    schema::{MessageContent, MessageSegment, SendMsgParams},
-};
+use bocchi::{chain::Rule, plugin::Plugin, schema::MessageSegment};
 use futures::StreamExt;
 use rand::seq::IteratorRandom;
 use tokio::fs;
@@ -53,18 +49,10 @@ pub fn what_to_eat_plugin() -> Plugin {
             }
             .await;
             let msg = match res {
-                Err(_) => MessageContent::Segment(vec![
-                    MessageSegment::Reply {
-                        id: ctx.event.message_id().to_string(),
-                    },
-                    MessageSegment::Text {
-                        text: "出错啦，请稍后再试".to_string(),
-                    },
-                ]),
-                Ok((food_name, image_content)) => MessageContent::Segment(vec![
-                    MessageSegment::Reply {
-                        id: ctx.event.message_id().to_string(),
-                    },
+                Err(_) => vec![MessageSegment::Text {
+                    text: "出错啦，请稍后再试".to_string(),
+                }],
+                Ok((food_name, image_content)) => vec![
                     MessageSegment::Text {
                         text: format!("今天吃{food_name}！"),
                     },
@@ -76,17 +64,9 @@ pub fn what_to_eat_plugin() -> Plugin {
                         proxy: None,
                         timeout: None,
                     },
-                ]),
+                ],
             };
-            ctx.caller
-                .send_msg(SendMsgParams {
-                    user_id: ctx.event.try_private_user_id().ok(),
-                    group_id: ctx.event.try_group_id().ok(),
-                    message: msg,
-                    auto_escape: true,
-                    message_type: None,
-                })
-                .await?;
+            ctx.reply_content(msg).await?;
             Ok(true)
         },
     );

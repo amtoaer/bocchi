@@ -171,8 +171,8 @@ pub enum Emoji {
     瞪眼_2 = 128563, // 😳
 }
 
-impl Emoji {
-    pub fn id(self) -> i32 {
-        self as i32
+impl From<Emoji> for i32 {
+    fn from(emoji: Emoji) -> Self {
+        emoji as i32
     }
 }

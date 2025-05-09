@@ -1,6 +1,6 @@
 use std::{sync::LazyLock, time::Duration};
 
-use bocchi::schema::{MessageContent, MessageSegment};
+use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 
 use crate::utils::HTTP_CLIENT;
@@ -72,7 +72,7 @@ async fn parse_video_id(text: &str) -> Option<VideoID> {
     parse_raw_video_id(url_after_redirect)
 }
 
-pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageContent> {
+pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     let video_id = parse_video_id(text).await?;
     let url = match video_id {
         VideoID::AV(id) => format!("https://api.bilibili.com/x/web-interface/view?aid={}", id),
@@ -89,10 +89,7 @@ pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageCon
         .ok()?;
     let data = resp.get("data")?.clone();
     let video_detail: VideoDetail = serde_json::from_value(data).ok()?;
-    let message_segment = vec![
-        MessageSegment::Reply {
-            id: message_id.to_string(),
-        },
+    Some(vec![
         MessageSegment::Image {
             file: video_detail.pic,
             r#type: None,
@@ -109,8 +106,7 @@ pub(crate) async fn recognizer(text: &str, message_id: i32) -> Option<MessageCon
                 video_detail.pubdate.with_timezone(&chrono::Local)
             ),
         },
-    ];
-    Some(MessageContent::Segment(message_segment))
+    ])
 }
 
 #[cfg(test)]

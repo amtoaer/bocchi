@@ -1,7 +1,6 @@
 use bocchi::{
     chain::Rule,
     plugin::Plugin,
-    schema::{MessageContent, SendMsgParams},
 };
 
 pub fn echo_plugin() -> Plugin {
@@ -20,16 +19,7 @@ pub fn echo_plugin() -> Plugin {
                 .trim()
                 .to_owned();
             if !plain_text.is_empty() {
-                let msg = MessageContent::Text(plain_text);
-                ctx.caller
-                    .send_msg(SendMsgParams {
-                        user_id: ctx.event.try_private_user_id().ok(),
-                        group_id: ctx.event.try_group_id().ok(),
-                        message: msg,
-                        auto_escape: true,
-                        message_type: None,
-                    })
-                    .await?;
+                ctx.send(plain_text).await?;
             }
             Ok(true)
         },
