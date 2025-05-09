@@ -10,16 +10,16 @@ use crate::utils::HTTP_CLIENT;
 struct HackerStory {
     id: i64,
     title: String,
-    url: String,
+    url: Option<String>,
 }
 
 impl Display for HackerStory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "标题：{}\n链接：{}\n评论：https://news.ycombinator.com/item?id={}",
-            self.title, self.url, self.id,
-        )
+        write!(f, "标题：{}\n", self.title)?;
+        if let Some(url) = &self.url {
+            write!(f, "链接：{}\n", url)?;
+        }
+        write!(f, "评论：https://news.ycombinator.com/item?id={}", self.id)
     }
 }
 
