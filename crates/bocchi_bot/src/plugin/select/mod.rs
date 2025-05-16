@@ -1,8 +1,5 @@
-use bocchi::{
-    chain::Rule,
-    plugin::Plugin,
-};
-use rand::seq::SliceRandom;
+use bocchi::{chain::Rule, plugin::Plugin};
+use rand::seq::IndexedRandom;
 
 pub fn select_plugin() -> Plugin {
     let mut plugin = Plugin::new("随机选择插件", "解决选择困难症");
@@ -21,7 +18,7 @@ pub fn select_plugin() -> Plugin {
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>();
             if !choices.is_empty() {
-                let choice = choices.choose(&mut rand::thread_rng());
+                let choice = choices.choose(&mut rand::rng());
                 if let Some(choice) = choice {
                     ctx.reply(choice.to_string()).await?;
                 }

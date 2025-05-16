@@ -1,7 +1,4 @@
-use bocchi::{
-    chain::Rule,
-    plugin::Plugin,
-};
+use bocchi::{chain::Rule, plugin::Plugin};
 use rand::Rng;
 
 use crate::{migrate::database, model::points::v1::Point};
@@ -22,7 +19,7 @@ pub fn bonus_plugin() -> Plugin {
                 .unwrap_or_else(|| Point::new(user_id, nickname.to_owned()));
             let mut got_point = 0;
             if point.last_update.date_naive() != chrono::Local::now().date_naive() {
-                got_point = rand::thread_rng().gen_range(1..=100);
+                got_point = rand::rng().random_range(1..=100);
                 point.point += got_point;
                 point.name = nickname.to_owned();
                 point.last_update = chrono::Local::now();

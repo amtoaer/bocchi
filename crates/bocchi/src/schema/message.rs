@@ -157,26 +157,6 @@ pub enum MessageSegment {
         /// 歌曲 ID
         id: String,
     },
-    /// 音乐自定义分享
-    #[serde(rename = "music")]
-    CustomMusic {
-        /// 表示音乐自定义分享
-        r#type: String,
-        /// 点击后跳转目标 URL
-        url: String,
-        /// 音乐 URL
-        audio: String,
-        /// 标题
-        title: String,
-        /// 发送时可选，内容描述
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        content: Option<String>,
-        /// 发送时可选，图片 URL
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        image: Option<String>,
-    },
     /// 回复
     Reply {
         /// 回复时引用的消息 ID

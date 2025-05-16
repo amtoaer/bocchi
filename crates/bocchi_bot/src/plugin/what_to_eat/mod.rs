@@ -39,7 +39,7 @@ pub fn what_to_eat_plugin() -> Plugin {
                     .await;
                 let food = foods
                     .into_iter()
-                    .choose(&mut rand::thread_rng())
+                    .choose(&mut rand::rng())
                     .ok_or_else(|| anyhow::anyhow!("没有食物"))?;
                 Ok::<_, anyhow::Error>((
                     // 前面确保了以 .jpg 或 .png 结尾，这里 unwrap 是安全的
