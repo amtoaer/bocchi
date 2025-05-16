@@ -27,10 +27,17 @@ pub trait Caller: Send + Sync {
 
     #[cfg(feature = "napcat")]
     async fn set_msg_emoji_like(&self, param: SetMsgEmojiLikeParams) -> Result<serde_json::Value>;
-    #[cfg(feature = "go-cqhttp")]
+    #[cfg(any(feature = "go-cqhttp", feature = "lagrange"))]
     async fn set_group_reaction(&self, param: SetGroupReactionParams) -> Result<serde_json::Value>;
 
-    #[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
+    #[cfg(feature = "lagrange")]
+    async fn send_private_forward_msg(&self, param: SendPrivateForwardMsgParams) -> Result<SendMsgResult>;
+
+    #[cfg(feature = "lagrange")]
+    async fn send_group_forward_msg(&self, param: SendGroupForwardMsgParams) -> Result<SendMsgResult>;
+
+    // 注意这个方法在多个后端都有实现，但实现方式不同
+    #[cfg(any(feature = "napcat", feature = "go-cqhttp", feature = "lagrange"))]
     async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendMsgResult>;
 }
 

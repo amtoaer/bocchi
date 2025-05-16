@@ -10,6 +10,7 @@ readme = "../../README.md"
 [features]
 napcat = []
 go-cqhttp = []
+lagrange = []
 
 [dependencies]
 tokio-tungstenite = { workspace = true }

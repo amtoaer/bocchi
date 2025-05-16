@@ -12,7 +12,7 @@ edition = "2021"
 publish = false
 
 [workspace.dependencies]
-bocchi = { path = "crates/bocchi", features = ["go-cqhttp"] }
+bocchi = { path = "crates/bocchi", features = ["lagrange"] }
 tokio-tungstenite = { version = "0.24.0", features = [] }
 tokio = { version = "1.41.0", features = [
     "net",

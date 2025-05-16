@@ -106,6 +106,29 @@ pub struct SetGroupReactionParams {
     pub emoji_id: i32,
 }
 
+#[cfg(feature = "lagrange")]
+#[derive(Debug, Serialize)]
+pub struct SetGroupReactionParams {
+    pub group_id: u64,
+    pub message_id: i32,
+    pub code: String,
+    pub is_add: bool,
+}
+
+#[cfg(feature = "lagrange")]
+#[derive(Debug, Serialize)]
+pub struct SendPrivateForwardMsgParams {
+    pub user_id: u64,
+    pub messages: MessageContent,
+}
+
+#[cfg(feature = "lagrange")]
+#[derive(Debug, Serialize)]
+pub struct SendGroupForwardMsgParams {
+    pub group_id: u64,
+    pub messages: MessageContent,
+}
+
 /// 获取登录信息的响应数据
 #[derive(Debug, Deserialize)]
 pub struct GetLoginInfoResult {
@@ -113,7 +136,7 @@ pub struct GetLoginInfoResult {
     pub nickname: String,
 }
 
-#[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
+#[cfg(any(feature = "napcat", feature = "go-cqhttp", feature = "lagrange"))]
 #[derive(Debug, Serialize)]
 pub struct SendForwardMsgParams {
     /// 消息类型，支持 private、group，分别对应私聊、群组，如不传入，则根据传入的 *_id 参数判断
@@ -144,8 +167,14 @@ pub enum RequestParams {
     #[cfg(feature = "napcat")]
     SetMsgEmojiLike(SetMsgEmojiLikeParams),
 
-    #[cfg(feature = "go-cqhttp")]
+    #[cfg(any(feature = "go-cqhttp", feature = "lagrange"))]
     SetGroupReaction(SetGroupReactionParams),
+
+    #[cfg(feature = "lagrange")]
+    SendPrivateForwardMsg(SendPrivateForwardMsgParams),
+
+    #[cfg(feature = "lagrange")]
+    SendGroupForwardMsg(SendGroupForwardMsgParams),
 }
 #[derive(Debug, Serialize)]
 pub struct ApiRequest {

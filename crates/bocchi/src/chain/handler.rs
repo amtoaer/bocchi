@@ -80,7 +80,16 @@ impl Context {
                 emoji_id: emoji.into(),
             })
             .await;
-        #[cfg(not(any(feature = "go-cqhttp", feature = "napcat")))]
+        #[cfg(feature = "lagrange")]
+        return self
+            .caller
+            .set_group_reaction(crate::schema::SetGroupReactionParams {
+                group_id: self.event.try_group_id()?,
+                message_id: self.event.message_id(),
+                code: emoji.into().to_string(),
+                is_add: true,
+            })
+            .await;
         unreachable!("Unsupported")
     }
 

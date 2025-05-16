@@ -192,12 +192,22 @@ impl Caller for WsAdapter {
         set_msg_emoji_like(self as &dyn Caller, param).await
     }
 
-    #[cfg(any(feature = "napcat", feature = "go-cqhttp"))]
+    #[cfg(any(feature = "napcat", feature = "go-cqhttp", feature = "lagrange"))]
     async fn send_forward_msg(&self, param: SendForwardMsgParams) -> Result<SendMsgResult> {
         send_forward_msg(self as &dyn Caller, param).await
     }
 
-    #[cfg(feature = "go-cqhttp")]
+    #[cfg(feature = "lagrange")]
+    async fn send_private_forward_msg(&self, param: SendPrivateForwardMsgParams) -> Result<SendMsgResult> {
+        send_private_forward_msg(self as &dyn Caller, param).await
+    }
+
+    #[cfg(feature = "lagrange")]
+    async fn send_group_forward_msg(&self, param: SendGroupForwardMsgParams) -> Result<SendMsgResult> {
+        send_group_forward_msg(self as &dyn Caller, param).await
+    }
+
+    #[cfg(any(feature = "go-cqhttp", feature = "lagrange"))]
     async fn set_group_reaction(&self, param: SetGroupReactionParams) -> Result<serde_json::Value> {
         set_group_reaction(self as &dyn Caller, param).await
     }
