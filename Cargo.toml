@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = ["amtoaer <amtoaer@gmail.com>"]
 license = "MIT"
 description = "基于 Tokio 的异步 OneBot 11 客户端实现"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [workspace.dependencies]

@@ -5,7 +5,7 @@ mod youtube;
 use std::{future::Future, pin::Pin};
 
 use bocchi::{chain::Rule, plugin::Plugin, schema::MessageSegment};
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, stream::FuturesUnordered};
 
 pub fn url_detail_plugin() -> Plugin {
     let mut plugin = Plugin::new("链接解析插件", "解析消息中的链接，展示详情");

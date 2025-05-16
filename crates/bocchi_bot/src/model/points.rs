@@ -1,5 +1,5 @@
 use native_db::*;
-use native_model::{native_model, Model};
+use native_model::{Model, native_model};
 use serde::{Deserialize, Serialize};
 
 pub mod v1 {

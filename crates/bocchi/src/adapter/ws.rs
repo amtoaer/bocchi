@@ -6,10 +6,10 @@ use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
 use http::Uri;
 use tokio::{net::TcpStream, sync::oneshot::Sender, time};
-use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Message};
 
 use crate::{
-    adapter::{error::ConnectError, extract_match_unions, Adapter, Caller, Connector},
+    adapter::{Adapter, Caller, Connector, error::ConnectError, extract_match_unions},
     caller::*,
     chain::Context,
     plugin::Plugin,

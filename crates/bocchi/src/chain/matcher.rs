@@ -1,7 +1,7 @@
 use std::{fmt::Display, ops};
 
 use crate::{
-    chain::{rule::InnerRule, Rule},
+    chain::{Rule, rule::InnerRule},
     schema::Event,
 };
 

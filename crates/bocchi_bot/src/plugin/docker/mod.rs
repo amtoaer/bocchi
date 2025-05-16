@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use bocchi::{chain::Rule, plugin::Plugin};
-use bollard::{container::StartContainerOptions, secret::ContainerStateStatusEnum, Docker};
+use bollard::{Docker, container::StartContainerOptions, secret::ContainerStateStatusEnum};
 
 pub fn docker_plugin() -> Plugin {
     let mut plugin = Plugin::new("饥荒插件", "控制饥荒服务器");

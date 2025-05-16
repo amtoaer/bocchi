@@ -1,6 +1,6 @@
 use bocchi::schema::Sender;
 use native_db::*;
-use native_model::{native_model, Model};
+use native_model::{Model, native_model};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 

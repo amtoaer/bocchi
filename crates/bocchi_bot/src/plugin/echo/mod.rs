@@ -1,7 +1,4 @@
-use bocchi::{
-    chain::Rule,
-    plugin::Plugin,
-};
+use bocchi::{chain::Rule, plugin::Plugin};
 
 pub fn echo_plugin() -> Plugin {
     let mut plugin = Plugin::new("回显插件", "回显用户输入的文本");

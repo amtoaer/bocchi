@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use bocchi::{chain::Rule, plugin::Plugin};
-use futures::{stream::FuturesOrdered, StreamExt};
+use futures::{StreamExt, stream::FuturesOrdered};
 use serde::Deserialize;
 
 use crate::utils::HTTP_CLIENT;

@@ -8,12 +8,12 @@ use bocchi::{
     schema::{Emoji, MessageSegment},
 };
 use dashmap::DashMap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::{io::AsyncWriteExt, sync::Mutex};
 
 use crate::{
     migrate::database,
-    model::memory::{v1::Memory, CachedMessage},
+    model::memory::{CachedMessage, v1::Memory},
     utils::HTTP_CLIENT,
 };
 

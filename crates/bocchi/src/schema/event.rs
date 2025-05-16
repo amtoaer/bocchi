@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::{MessageContent, MessageSegment};
