@@ -23,7 +23,7 @@ pub fn bonus_plugin() -> Plugin {
                 point.point += got_point;
                 point.name = nickname.to_owned();
                 point.last_update = chrono::Local::now();
-                rw.insert(point.clone())?;
+                rw.upsert(point.clone())?;
             }
             rw.commit()?;
             let msg = if got_point != 0 {

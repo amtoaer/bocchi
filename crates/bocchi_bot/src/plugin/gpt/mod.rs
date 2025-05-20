@@ -47,7 +47,9 @@ pub fn gpt_plugin() -> Plugin {
             let rw = database().rw_transaction()?;
             for command in ["#gpt", "#igpt"] {
                 let cache_key = format!("{}_{:?}_{}", command, optional_group_id, user_id);
-                rw.remove::<Memory>(Memory::new(cache_key))?;
+                if let Some(memory) = rw.get().primary::<Memory>(cache_key)? {
+                    rw.remove(memory)?;
+                }
             }
             rw.commit()?;
             ctx.reply("GPT 消息历史已清除").await?;
@@ -124,7 +126,7 @@ async fn call_deepseek_api(
         memory.history.pop_front();
     }
     let rw = database().rw_transaction()?;
-    rw.insert(memory)?;
+    rw.upsert(memory)?;
     rw.commit()?;
     drop(_guard);
     let mut tempfile = TempFile::new().await?;
