@@ -173,7 +173,7 @@ impl<'a> Event {
         let msg = self.try_message()?;
         match msg {
             // 这里作为通用实现可能是错误的，因为框架可能会发送包含 CQ 码的纯文本而非结构化数据，
-            // 如 “[CQ:face,id=178]看看我刚拍的照片[CQ:image,file=123.jpg]”
+            // 如“[CQ:face,id=178] 看看我刚拍的照片 [CQ:image,file=123.jpg]”
             // 但实现 CQ 码解析会很麻烦，而且使用 napcat 时并未出现这种情况，所以先这样用着
             MessageContent::Text(text) => Ok(Cow::Borrowed(text)),
             MessageContent::Segment(segment) => Ok(segment
