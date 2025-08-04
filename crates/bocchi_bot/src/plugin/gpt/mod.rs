@@ -36,13 +36,14 @@ pub fn gpt_plugin() -> Plugin {
             move |ctx| async move { call_deepseek_api(ctx, command, max_tokens, reply_image).await },
         )
     }
+
     for (description, command, reply_image) in [
         ("查询 gpt 历史记录", "#gpt_history", false),
         ("查询 igpt 历史记录", "#igpt_history", true),
     ] {
         plugin.on(
             description,
-            i32::default(),
+            i32::default() + 1, // 确保查询历史记录的优先级高于提问
             Rule::on_group_message() & Rule::on_exact_match(command),
             move |ctx| async move { query_gpt_history(ctx, command, reply_image).await },
         );
