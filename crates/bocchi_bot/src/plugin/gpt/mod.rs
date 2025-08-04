@@ -5,7 +5,7 @@ use async_tempfile::TempFile;
 use bocchi::{
     chain::{Context, Rule},
     plugin::Plugin,
-    schema::{Emoji, MessageSegment},
+    schema::{Emoji, MessageContent, MessageSegment},
 };
 use dashmap::DashMap;
 use serde_json::{Value, json};
@@ -36,6 +36,19 @@ pub fn gpt_plugin() -> Plugin {
             move |ctx| async move { call_deepseek_api(ctx, command, max_tokens, reply_image).await },
         )
     }
+
+    for (description, command, lookup_command, reply_image) in [
+        ("查询 gpt 历史记录", "#gpt_history", "#gpt", false),
+        ("查询 igpt 历史记录", "#igpt_history", "#igpt", true),
+    ] {
+        plugin.on(
+            description,
+            i32::default() + 1, // 确保查询历史记录的优先级高于提问
+            Rule::on_group_message() & Rule::on_exact_match(command),
+            move |ctx| async move { query_gpt_history(ctx, lookup_command, reply_image).await },
+        );
+    }
+
     plugin.on(
         "清除 GPT 的消息历史",
         i32::default(),
@@ -151,4 +164,70 @@ async fn call_deepseek_api(
     ctx.set_reaction(emoji).await?;
     ctx.reply_content(vec![message]).await?;
     res
+}
+
+async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: bool) -> Result<bool> {
+    let (user_id, optional_group_id) = (ctx.event.user_id(), ctx.event.try_group_id().ok());
+    let cache_key = format!("{}_{:?}_{}", command, optional_group_id, user_id);
+    let r = database().r_transaction()?;
+    let memory = r.get().primary::<Memory>(cache_key.as_str())?;
+    drop(r);
+    let command_name = command.trim_start_matches('#').to_uppercase();
+    if let Some(memory) = memory {
+        if memory.history.is_empty() {
+            ctx.reply(format!("没有找到 {} 历史记录", command_name)).await?;
+            return Ok(true);
+        }
+        let mut messages = Vec::new();
+        // 一般来说历史记录是一条用户一条 GPT，因此 len / 2 + 1 足够了
+        let mut tempfiles = Vec::with_capacity(memory.history.len() / 2 + 1);
+        for message in memory.history.iter() {
+            match &message.sender {
+                Some(sender) => {
+                    messages.push(MessageSegment::Node {
+                        id: None,
+                        user_id: sender.user_id.map(|id| id.to_string()),
+                        nickname: sender.nickname.clone(),
+                        content: Some(MessageContent::Text(message.content.clone())),
+                    });
+                }
+                None => {
+                    let message_user_id = Some(ctx.event.user_id().to_string());
+                    if reply_image {
+                        let mut tempfile = TempFile::new().await?;
+                        tempfile
+                            .write_all(&markdown::markdown_to_image(message.content.clone()).await?)
+                            .await?;
+                        tempfile.flush().await?;
+                        messages.push(MessageSegment::Node {
+                            id: None,
+                            user_id: message_user_id,
+                            nickname: Some(command_name.clone()),
+                            content: Some(MessageContent::Segment(vec![MessageSegment::Image {
+                                file: format!("file://{}", tempfile.file_path().to_string_lossy()),
+                                r#type: None,
+                                url: None,
+                                cache: Some(true),
+                                proxy: Some(false),
+                                timeout: None,
+                            }])),
+                        });
+                        // 这里很关键，如果不将 tempfile 所有权转移出去，超出 scope 时会被 drop，临时文件被删除
+                        tempfiles.push(tempfile);
+                    } else {
+                        messages.push(MessageSegment::Node {
+                            id: None,
+                            user_id: message_user_id,
+                            nickname: Some(command_name.clone()),
+                            content: Some(MessageContent::Text(message.content.clone())),
+                        });
+                    }
+                }
+            }
+        }
+        ctx.send_forward_segment(messages).await?;
+    } else {
+        ctx.reply(format!("没有找到 {} 历史记录", command_name)).await?;
+    }
+    Ok(true)
 }

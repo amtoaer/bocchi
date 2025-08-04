@@ -53,6 +53,6 @@ pub(crate) fn extract_match_unions(plugins: &[Plugin]) -> Vec<Arc<MatchUnion>> {
         .cloned()
         .collect::<Vec<_>>();
     // 优先级从大到小排序
-    match_unions.sort_by(|a, b| b.priority.cmp(&a.priority));
+    match_unions.sort_by_key(|mu| -mu.priority);
     match_unions
 }

@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 
 use crate::{
     adapter::Caller,
@@ -101,21 +101,30 @@ impl Context {
     pub async fn send_forward_content(&self, messages: Vec<MessageContent>) -> Result<SendMsgResult> {
         let user_id = self.event.try_user_id().ok().map(|id| id.to_string());
         let nickname = self.event.sender().nickname.clone();
+        self.send_forward_segment(
+            messages
+                .into_iter()
+                .map(|m| MessageSegment::Node {
+                    id: None,
+                    user_id: user_id.clone(),
+                    nickname: nickname.clone(),
+                    content: Some(m),
+                })
+                .collect(),
+        )
+        .await
+    }
+
+    pub async fn send_forward_segment(&self, messages: Vec<MessageSegment>) -> Result<SendMsgResult> {
+        ensure!(
+            messages.iter().all(|m| matches!(m, MessageSegment::Node { .. })),
+            "All segments must be of type Node"
+        );
         self.caller
             .send_forward_msg(SendForwardMsgParams {
                 user_id: self.event.try_private_user_id().ok(),
                 group_id: self.event.try_group_id().ok(),
-                messages: MessageContent::Segment(
-                    messages
-                        .into_iter()
-                        .map(|m| MessageSegment::Node {
-                            id: None,
-                            user_id: user_id.clone(),
-                            nickname: nickname.clone(),
-                            content: Some(m),
-                        })
-                        .collect(),
-                ),
+                messages: MessageContent::Segment(messages),
                 message_type: None,
             })
             .await
