@@ -68,7 +68,10 @@ impl Rule {
     }
 
     pub fn on_exact_match(str: &'static str) -> Rule {
-        Self::on_text(format!("on_exact_match({str})").into(), move |text| text == str.trim())
+        Self::on_text(format!("on_exact_match({str})").into(), move |text| {
+            error!("on_exact_match: text = \"{text}\", str = \"{str}\"");
+            text == str.trim()
+        })
     }
 
     pub fn on_prefix(prefix: &'static str) -> Rule {
