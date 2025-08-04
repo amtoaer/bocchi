@@ -37,15 +37,15 @@ pub fn gpt_plugin() -> Plugin {
         )
     }
 
-    for (description, command, reply_image) in [
-        ("查询 gpt 历史记录", "#gpt_history", false),
-        ("查询 igpt 历史记录", "#igpt_history", true),
+    for (description, command, lookup_command, reply_image) in [
+        ("查询 gpt 历史记录", "#gpt_history", "#gpt", false),
+        ("查询 igpt 历史记录", "#igpt_history", "#igpt", true),
     ] {
         plugin.on(
             description,
             i32::default() + 1, // 确保查询历史记录的优先级高于提问
             Rule::on_group_message() & Rule::on_exact_match(command),
-            move |ctx| async move { query_gpt_history(ctx, command, reply_image).await },
+            move |ctx| async move { query_gpt_history(ctx, lookup_command, reply_image).await },
         );
     }
 
@@ -172,9 +172,10 @@ async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: boo
     let r = database().r_transaction()?;
     let memory = r.get().primary::<Memory>(cache_key.as_str())?;
     drop(r);
+    let command_name = command.trim_start_matches('#').to_uppercase();
     if let Some(memory) = memory {
         if memory.history.is_empty() {
-            ctx.reply("没有找到 GPT 历史记录").await?;
+            ctx.reply(format!("没有找到 {} 历史记录", command_name)).await?;
             return Ok(true);
         }
         let mut messages = Vec::new();
@@ -199,7 +200,7 @@ async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: boo
                         messages.push(MessageSegment::Node {
                             id: None,
                             user_id: message_user_id,
-                            nickname: Some("GPT".to_string()),
+                            nickname: Some(command_name.clone()),
                             content: Some(MessageContent::Segment(vec![MessageSegment::Image {
                                 file: format!("file://{}", tempfile.file_path().to_string_lossy()),
                                 r#type: None,
@@ -213,7 +214,7 @@ async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: boo
                         messages.push(MessageSegment::Node {
                             id: None,
                             user_id: message_user_id,
-                            nickname: Some("GPT".to_string()),
+                            nickname: Some(command_name.clone()),
                             content: Some(MessageContent::Text(message.content.clone())),
                         });
                     }
@@ -222,7 +223,7 @@ async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: boo
         }
         ctx.send_forward_segment(messages).await?;
     } else {
-        ctx.reply("没有找到 GPT 历史记录").await?;
+        ctx.reply(format!("没有找到 {} 历史记录", command_name)).await?;
     }
     Ok(true)
 }
