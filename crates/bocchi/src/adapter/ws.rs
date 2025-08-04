@@ -97,7 +97,13 @@ impl Connector for WsAdapter {
                                         if match_union.matcher.is_match(&context.event) {
                                             match (*match_union.handler)(context.clone()).await {
                                                 // 事件的返回值被视为中断标志，如果返回 true
-                                                Err(e) => error!("Failed to handle event with : {e:?}"),
+                                                Err(e) => {
+                                                    error!(
+                                                        "Failed to handle event with {}: {:?}",
+                                                        match_union.matcher, e
+                                                    );
+                                                    break;
+                                                }
                                                 Ok(true) => break,
                                                 _ => (),
                                             }

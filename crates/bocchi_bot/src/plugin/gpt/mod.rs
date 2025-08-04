@@ -179,6 +179,8 @@ async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: boo
             return Ok(true);
         }
         let mut messages = Vec::new();
+        // 一般来说历史记录是一条用户一条 GPT，因此 len / 2 + 1 足够了
+        let mut tempfiles = Vec::with_capacity(memory.history.len() / 2 + 1);
         for message in memory.history.iter() {
             match &message.sender {
                 Some(sender) => {
@@ -206,10 +208,12 @@ async fn query_gpt_history(ctx: Context, command: &'static str, reply_image: boo
                                 r#type: None,
                                 url: None,
                                 cache: Some(true),
-                                proxy: None,
+                                proxy: Some(false),
                                 timeout: None,
                             }])),
                         });
+                        // 这里很关键，如果不将 tempfile 所有权转移出去，超出 scope 时会被 drop，临时文件被删除
+                        tempfiles.push(tempfile);
                     } else {
                         messages.push(MessageSegment::Node {
                             id: None,
