@@ -130,7 +130,7 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
         _ => return None,
     };
 
-    // 引用推文上半：作者 + 内容
+    // 引用推文上半：作者 + 内容（前一个 segment 是文本，需要 \n 换行）
     let mut quote_top = format!("\n---\n引用了 @{}", username);
     if let Some(ref fullname) = quoted_fullname {
         if !fullname.is_empty() {
@@ -139,6 +139,7 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
     }
     quote_top.push_str(&format!(":\n{}", content));
     message_segments.push(MessageSegment::Text { text: quote_top });
+    let mut last_was_image = false;
 
     // 引用推文中的图片（位于引用内容与引用日期之间）
     if let Some(media_container) = quote_el.select(&QUOTE_MEDIA_SEL).next() {
@@ -151,19 +152,23 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
                 proxy: Some(false),
                 timeout: Some(10),
             });
+            last_was_image = true;
         }
         // 引用推文中的视频
         if has_video(&media_container, &GALLERY_VIDEO_SEL) {
+            let br = if last_was_image { "" } else { "\n" };
             message_segments.push(MessageSegment::Text {
-                text: "\n[引用推文中含有视频，当前不支持解析]".to_owned(),
+                text: format!("{}[引用推文中含有视频，当前不支持解析]", br),
             });
+            last_was_image = false;
         }
     }
 
     // 引用推文下半：日期
     if let Some(ref date) = quoted_date {
+        let br = if last_was_image { "" } else { "\n" };
         message_segments.push(MessageSegment::Text {
-            text: format!("\n🕒 {}", date),
+            text: format!("{}🕒 {}", br, date),
         });
     }
 
@@ -226,6 +231,8 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     let (comments, retweets, likes, views) = parse_tweet_stats(&tweet_body);
 
     let mut message_segments = Vec::new();
+    // 追踪上一个 segment 是否为图片，以便在文本间插入换行（图片天然分隔）
+    let mut last_was_image = false;
 
     // 构建正文前半：作者 + 内容
     let mut text_top = format!("@{}", author_username);
@@ -247,24 +254,28 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
             proxy: Some(false),
             timeout: Some(10),
         });
+        last_was_image = true;
     }
 
     // 主推文视频提醒（位于图片后、日期前）
     if has_video(&tweet_body, &MAIN_GALLERY_VIDEO_SEL) {
+        let br = if last_was_image { "" } else { "\n" };
         message_segments.push(MessageSegment::Text {
-            text: "\n[推文中含有视频，当前不支持解析]".to_owned(),
+            text: format!("{}[推文中含有视频，当前不支持解析]", br),
         });
+        last_was_image = false;
     }
 
     // 构建正文后半：日期、统计
-    let mut text_bottom = String::new();
-    if let Some(ref date) = published_date {
-        text_bottom.push_str(&format!("🕒 {}", date));
-    }
-    text_bottom.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
-    if !text_bottom.is_empty() {
+    {
+        let br = if last_was_image { "" } else { "\n" };
+        let mut line = String::new();
+        if let Some(ref date) = published_date {
+            line.push_str(&format!("🕒 {}", date));
+        }
+        line.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
         message_segments.push(MessageSegment::Text {
-            text: format!("\n{}", text_bottom),
+            text: format!("{}{}", br, line),
         });
     }
 
