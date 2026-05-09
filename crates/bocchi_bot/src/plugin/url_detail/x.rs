@@ -122,6 +122,12 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     let resp = HTTP_CLIENT
         .get(&nitter_url)
         .header("User-Agent", FIREFOX_UA)
+        .header(
+            "Accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        )
+        .header("Accept-Language", "zh-CN,en-US;q=0.9,en;q=0.8")
+        .header("Upgrade-Insecure-Requests", "1")
         .timeout(Duration::from_secs(10))
         .send()
         .await;
