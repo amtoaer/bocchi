@@ -28,11 +28,17 @@ static DATE_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".tweet-d
 
 static STATS_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".tweet-stats .tweet-stat").unwrap());
 
-static AVATAR_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".tweet-avatar img").unwrap());
-
 static QUOTE_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".quote").unwrap());
 
 static QUOTE_TEXT_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".quote-text").unwrap());
+
+static ATTACHMENT_IMG_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse(".attachments .gallery-row .attachment a.still-image").unwrap());
+
+static GALLERY_VIDEO_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse(".attachments .gallery-video").unwrap());
+
+static QUOTE_MEDIA_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".quote-media-container").unwrap());
 
 // ---- 辅助函数 ----
 
@@ -67,7 +73,24 @@ fn parse_tweet_stats(tweet_body: &scraper::ElementRef) -> (String, String, Strin
     (comments, retweets, likes, views)
 }
 
-fn extract_quoted_tweet(tweet_body: &scraper::ElementRef) -> Option<String> {
+/// 从指定元素范围内提取图片 URL 列表（从 still-image 的 href 取原始图），并拼接 nitter 前缀
+fn extract_images(scope: &scraper::ElementRef) -> Vec<String> {
+    scope
+        .select(&ATTACHMENT_IMG_SEL)
+        .filter_map(|el| el.value().attr("href"))
+        .map(|href| format!("https://nitter.net{}", href))
+        .collect()
+}
+
+/// 检测指定元素范围内是否存在视频
+fn has_video(scope: &scraper::ElementRef) -> bool {
+    scope.select(&GALLERY_VIDEO_SEL).next().is_some()
+}
+
+fn extract_quoted_tweet(
+    tweet_body: &scraper::ElementRef,
+    message_segments: &mut Vec<MessageSegment>,
+) -> Option<String> {
     let quote_el = tweet_body.select(&QUOTE_SEL).next()?;
 
     let quoted_fullname = quote_el
@@ -90,6 +113,26 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef) -> Option<String> {
         .next()
         .and_then(|el| el.value().attr("title"))
         .map(|s| s.to_owned());
+
+    // 引用推文中的图片
+    if let Some(media_container) = quote_el.select(&QUOTE_MEDIA_SEL).next() {
+        for img_url in extract_images(&media_container) {
+            message_segments.push(MessageSegment::Image {
+                file: img_url,
+                r#type: None,
+                url: None,
+                cache: Some(true),
+                proxy: Some(false),
+                timeout: Some(10),
+            });
+        }
+        // 引用推文中的视频
+        if has_video(&media_container) {
+            message_segments.push(MessageSegment::Text {
+                text: "[引用推文中含有视频，当前不支持解析]".to_owned(),
+            });
+        }
+    }
 
     match (quoted_username, quoted_content) {
         (Some(username), Some(content)) => {
@@ -164,19 +207,12 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     // 提取统计数据
     let (comments, retweets, likes, views) = parse_tweet_stats(&tweet_body);
 
-    // 提取头像
-    let avatar_url = tweet_body
-        .select(&AVATAR_SEL)
-        .next()
-        .and_then(|el| el.value().attr("src"))
-        .map(|src| format!("https://nitter.net{}", src));
-
     let mut message_segments = Vec::new();
 
-    // 头像图片
-    if let Some(ref avatar) = avatar_url {
+    // 主推文图片
+    for img_url in extract_images(&tweet_body) {
         message_segments.push(MessageSegment::Image {
-            file: avatar.clone(),
+            file: img_url,
             r#type: None,
             url: None,
             cache: Some(true),
@@ -200,8 +236,13 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
 
     text.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
 
+    // 主推文视频提示
+    if has_video(&tweet_body) {
+        text.push_str("\n[推文中含有视频，当前不支持解析]");
+    }
+
     // 检查是否有引用的推文
-    if let Some(quoted_text) = extract_quoted_tweet(&tweet_body) {
+    if let Some(quoted_text) = extract_quoted_tweet(&tweet_body, &mut message_segments) {
         text.push_str(&quoted_text);
     }
 
