@@ -10,7 +10,7 @@ static X_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?x\.com/(\w+)/status/(\d+)").unwrap());
 
 /// Firefox UA，避免 nitter 返回空内容
-const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
+const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
 
 // ---- 预编译的 CSS 选择器 ----
 
