@@ -259,12 +259,13 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     // 构建正文后半：日期、统计
     let mut text_bottom = String::new();
     if let Some(ref date) = published_date {
-        text_bottom.push_str(&format!("\n🕒 {}", date));
+        text_bottom.push_str(&format!("🕒 {}", date));
     }
     text_bottom.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
-
     if !text_bottom.is_empty() {
-        message_segments.push(MessageSegment::Text { text: text_bottom });
+        message_segments.push(MessageSegment::Text {
+            text: format!("\n{}", text_bottom),
+        });
     }
 
     extract_quoted_tweet(&tweet_body, &mut message_segments);
