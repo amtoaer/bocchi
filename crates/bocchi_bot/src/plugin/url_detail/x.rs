@@ -41,6 +41,9 @@ static MAIN_ATTACHMENT_IMG_SEL: LazyLock<Selector> =
 static GALLERY_VIDEO_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse(".attachments .gallery-video").unwrap());
 
+static MAIN_GALLERY_VIDEO_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse(":scope > .attachments .gallery-video").unwrap());
+
 static QUOTE_MEDIA_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".quote-media-container").unwrap());
 
 // ---- 辅助函数 ----
@@ -94,8 +97,8 @@ fn extract_images(scope: &scraper::ElementRef, sel: &Selector) -> Vec<String> {
 }
 
 /// 检测指定元素范围内是否存在视频
-fn has_video(scope: &scraper::ElementRef) -> bool {
-    scope.select(&GALLERY_VIDEO_SEL).next().is_some()
+fn has_video(scope: &scraper::ElementRef, sel: &Selector) -> bool {
+    scope.select(sel).next().is_some()
 }
 
 fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut Vec<MessageSegment>) -> Option<()> {
@@ -150,7 +153,7 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
             });
         }
         // 引用推文中的视频
-        if has_video(&media_container) {
+        if has_video(&media_container, &GALLERY_VIDEO_SEL) {
             message_segments.push(MessageSegment::Text {
                 text: "[引用推文中含有视频，当前不支持解析]".to_owned(),
             });
@@ -246,16 +249,19 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         });
     }
 
-    // 构建正文后半：日期、统计、视频提示、引用
+    // 主推文视频提醒（位于图片后、日期前）
+    if has_video(&tweet_body, &MAIN_GALLERY_VIDEO_SEL) {
+        message_segments.push(MessageSegment::Text {
+            text: "[推文中含有视频，当前不支持解析]".to_owned(),
+        });
+    }
+
+    // 构建正文后半：日期、统计
     let mut text_bottom = String::new();
     if let Some(ref date) = published_date {
         text_bottom.push_str(&format!("\n🕒 {}", date));
     }
     text_bottom.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
-
-    if has_video(&tweet_body) {
-        text_bottom.push_str("\n[推文中含有视频，当前不支持解析]");
-    }
 
     if !text_bottom.is_empty() {
         message_segments.push(MessageSegment::Text { text: text_bottom });
