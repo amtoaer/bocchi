@@ -1,6 +1,7 @@
 use std::{sync::LazyLock, time::Duration};
 
 use bocchi::schema::MessageSegment;
+use reqwest::header;
 use scraper::{Html, Selector};
 
 use crate::utils::HTTP_CLIENT;
@@ -9,7 +10,7 @@ static X_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?x\.com/(\w+)/status/(\d+)").unwrap());
 
 /// Firefox UA，避免 nitter 返回空内容
-const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
+const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
 
 // ---- 预编译的 CSS 选择器 ----
 
@@ -121,13 +122,8 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
 
     let resp = HTTP_CLIENT
         .get(&nitter_url)
-        .header("User-Agent", FIREFOX_UA)
-        .header(
-            "Accept",
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        )
-        .header("Accept-Language", "zh-CN,en-US;q=0.9,en;q=0.8")
-        .header("Upgrade-Insecure-Requests", "1")
+        .header(header::USER_AGENT, FIREFOX_UA)
+        .header(header::ACCEPT_LANGUAGE, "zh-CN,en-US;q=0.9,en;q=0.8")
         .timeout(Duration::from_secs(10))
         .send()
         .await;
@@ -140,8 +136,10 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         }
     };
 
+    let final_url = resp.url().to_string();
     let status = resp.status();
-    warn!("Nitter 响应状态: {}", status);
+    warn!("Nitter 响应状态: {}, 最终 URL: {}", status, final_url);
+    warn!("Nitter 响应头: {:?}", resp.headers());
 
     let body = match resp.text().await {
         Ok(b) => b,
