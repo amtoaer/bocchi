@@ -35,6 +35,9 @@ static QUOTE_TEXT_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".q
 static ATTACHMENT_IMG_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse(".attachments .gallery-row .attachment a.still-image").unwrap());
 
+static MAIN_ATTACHMENT_IMG_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse(":scope > .attachments .gallery-row .attachment a.still-image").unwrap());
+
 static GALLERY_VIDEO_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse(".attachments .gallery-video").unwrap());
 
@@ -82,9 +85,9 @@ fn parse_tweet_stats(tweet_body: &scraper::ElementRef) -> (String, String, Strin
 }
 
 /// 从指定元素范围内提取图片 URL 列表（从 still-image 的 href 取原始图），并拼接 nitter 前缀
-fn extract_images(scope: &scraper::ElementRef) -> Vec<String> {
+fn extract_images(scope: &scraper::ElementRef, sel: &Selector) -> Vec<String> {
     scope
-        .select(&ATTACHMENT_IMG_SEL)
+        .select(sel)
         .filter_map(|el| el.value().attr("href"))
         .map(|href| format!("https://nitter.net{}", href))
         .collect()
@@ -136,7 +139,7 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
 
     // 引用推文中的图片（位于引用内容与引用日期之间）
     if let Some(media_container) = quote_el.select(&QUOTE_MEDIA_SEL).next() {
-        for img_url in extract_images(&media_container) {
+        for img_url in extract_images(&media_container, &ATTACHMENT_IMG_SEL) {
             message_segments.push(MessageSegment::Image {
                 file: img_url,
                 r#type: None,
@@ -232,7 +235,7 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     message_segments.push(MessageSegment::Text { text: text_top });
 
     // 主推文图片（位于内容与日期之间）
-    for img_url in extract_images(&tweet_body) {
+    for img_url in extract_images(&tweet_body, &MAIN_ATTACHMENT_IMG_SEL) {
         message_segments.push(MessageSegment::Image {
             file: img_url,
             r#type: None,
@@ -254,11 +257,11 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         text_bottom.push_str("\n[推文中含有视频，当前不支持解析]");
     }
 
-    extract_quoted_tweet(&tweet_body, &mut message_segments);
-
     if !text_bottom.is_empty() {
         message_segments.push(MessageSegment::Text { text: text_bottom });
     }
+
+    extract_quoted_tweet(&tweet_body, &mut message_segments);
 
     Some(message_segments)
 }
