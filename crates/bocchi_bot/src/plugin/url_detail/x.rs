@@ -42,6 +42,14 @@ static QUOTE_MEDIA_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse(".
 
 // ---- 辅助函数 ----
 
+/// 将 Nitter 的 UTC 时间字符串转为本地时区显示，解析失败则返回原文
+fn format_date(raw: &str) -> String {
+    chrono::NaiveDateTime::parse_from_str(raw, "%B %d, %Y · %I:%M %p UTC")
+        .ok()
+        .map(|dt| dt.and_utc().with_timezone(&chrono::Local).to_string())
+        .unwrap_or_else(|| raw.to_owned())
+}
+
 fn clean_text(html: &str) -> String {
     let fragment = Html::parse_fragment(html);
     fragment
@@ -87,10 +95,7 @@ fn has_video(scope: &scraper::ElementRef) -> bool {
     scope.select(&GALLERY_VIDEO_SEL).next().is_some()
 }
 
-fn extract_quoted_tweet(
-    tweet_body: &scraper::ElementRef,
-    message_segments: &mut Vec<MessageSegment>,
-) -> Option<String> {
+fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut Vec<MessageSegment>) -> Option<()> {
     let quote_el = tweet_body.select(&QUOTE_SEL).next()?;
 
     let quoted_fullname = quote_el
@@ -112,9 +117,24 @@ fn extract_quoted_tweet(
         .select(&DATE_SEL)
         .next()
         .and_then(|el| el.value().attr("title"))
-        .map(|s| s.to_owned());
+        .map(format_date);
 
-    // 引用推文中的图片
+    let (username, content) = match (quoted_username, quoted_content) {
+        (Some(u), Some(c)) => (u, c),
+        _ => return None,
+    };
+
+    // 引用推文上半：作者 + 内容
+    let mut quote_top = format!("\n---\n引用了 @{}", username);
+    if let Some(ref fullname) = quoted_fullname {
+        if !fullname.is_empty() {
+            quote_top.push_str(&format!(" ({})", fullname));
+        }
+    }
+    quote_top.push_str(&format!(":\n{}", content));
+    message_segments.push(MessageSegment::Text { text: quote_top });
+
+    // 引用推文中的图片（位于引用内容与引用日期之间）
     if let Some(media_container) = quote_el.select(&QUOTE_MEDIA_SEL).next() {
         for img_url in extract_images(&media_container) {
             message_segments.push(MessageSegment::Image {
@@ -134,22 +154,14 @@ fn extract_quoted_tweet(
         }
     }
 
-    match (quoted_username, quoted_content) {
-        (Some(username), Some(content)) => {
-            let mut text = format!("\n---\n引用了 @{}", username);
-            if let Some(ref fullname) = quoted_fullname {
-                if !fullname.is_empty() {
-                    text.push_str(&format!(" ({})", fullname));
-                }
-            }
-            text.push_str(&format!(":\n{}", content));
-            if let Some(ref date) = quoted_date {
-                text.push_str(&format!("\n🕒 {}", date));
-            }
-            Some(text)
-        }
-        _ => None,
+    // 引用推文下半：日期
+    if let Some(ref date) = quoted_date {
+        message_segments.push(MessageSegment::Text {
+            text: format!("🕒 {}", date),
+        });
     }
+
+    Some(())
 }
 
 // ---- 入口 ----
@@ -202,14 +214,24 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         .select(&DATE_SEL)
         .next()
         .and_then(|el| el.value().attr("title"))
-        .map(|s| s.to_owned());
+        .map(format_date);
 
     // 提取统计数据
     let (comments, retweets, likes, views) = parse_tweet_stats(&tweet_body);
 
     let mut message_segments = Vec::new();
 
-    // 主推文图片
+    // 构建正文前半：作者 + 内容
+    let mut text_top = format!("@{}", author_username);
+    if let Some(ref fullname) = author_fullname {
+        if !fullname.is_empty() && *fullname != author_username {
+            text_top.push_str(&format!(" ({})", fullname));
+        }
+    }
+    text_top.push_str(&format!(":\n{}", content));
+    message_segments.push(MessageSegment::Text { text: text_top });
+
+    // 主推文图片（位于内容与日期之间）
     for img_url in extract_images(&tweet_body) {
         message_segments.push(MessageSegment::Image {
             file: img_url,
@@ -221,32 +243,22 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         });
     }
 
-    // 构建正文
-    let mut text = format!("@{}", author_username);
-    if let Some(ref fullname) = author_fullname {
-        if !fullname.is_empty() && *fullname != author_username {
-            text.push_str(&format!(" ({})", fullname));
-        }
-    }
-    text.push_str(&format!(":\n{}", content));
-
+    // 构建正文后半：日期、统计、视频提示、引用
+    let mut text_bottom = String::new();
     if let Some(ref date) = published_date {
-        text.push_str(&format!("\n🕒 {}", date));
+        text_bottom.push_str(&format!("\n🕒 {}", date));
     }
+    text_bottom.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
 
-    text.push_str(&format!(" | 💬 {} 🔄 {} ❤️ {} 👁 {}", comments, retweets, likes, views));
-
-    // 主推文视频提示
     if has_video(&tweet_body) {
-        text.push_str("\n[推文中含有视频，当前不支持解析]");
+        text_bottom.push_str("\n[推文中含有视频，当前不支持解析]");
     }
 
-    // 检查是否有引用的推文
-    if let Some(quoted_text) = extract_quoted_tweet(&tweet_body, &mut message_segments) {
-        text.push_str(&quoted_text);
-    }
+    extract_quoted_tweet(&tweet_body, &mut message_segments);
 
-    message_segments.push(MessageSegment::Text { text });
+    if !text_bottom.is_empty() {
+        message_segments.push(MessageSegment::Text { text: text_bottom });
+    }
 
     Some(message_segments)
 }
