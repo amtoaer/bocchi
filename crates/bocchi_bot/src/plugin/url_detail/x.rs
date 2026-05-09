@@ -114,24 +114,51 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     let caps = X_REGEX.captures(text)?;
     let username = caps.get(1)?.as_str();
     let status_id = caps.get(2)?.as_str();
+    debug!("匹配到 X 链接: @{}/{}", username, status_id);
 
     let nitter_url = format!("https://nitter.net/{}/status/{}", username, status_id);
+    debug!("请求 Nitter URL: {}", nitter_url);
 
     let resp = HTTP_CLIENT
         .get(&nitter_url)
         .header("User-Agent", FIREFOX_UA)
         .timeout(Duration::from_secs(10))
         .send()
-        .await
-        .ok()?
-        .text()
-        .await
-        .ok()?;
+        .await;
 
-    let html = Html::parse_document(&resp);
+    let resp = match resp {
+        Ok(r) => r,
+        Err(e) => {
+            warn!("请求 Nitter 失败: {:?}", e);
+            return None;
+        }
+    };
+
+    let status = resp.status();
+    debug!("Nitter 响应状态: {}", status);
+
+    let body = match resp.text().await {
+        Ok(b) => b,
+        Err(e) => {
+            warn!("读取 Nitter 响应体失败: {:?}", e);
+            return None;
+        }
+    };
+
+    debug!("Nitter 响应体长度: {} 字节", body.len());
+
+    let html = Html::parse_document(&body);
 
     // 定位主推文
-    let tweet_body = html.select(&MAIN_TWEET_SEL).next()?;
+    let tweet_body = match html.select(&MAIN_TWEET_SEL).next() {
+        Some(b) => b,
+        None => {
+            warn!("未在页面中找到主推文 (#m .timeline-item .tweet-body)");
+            let preview = &body[..body.len().min(500)];
+            debug!("页面内容前 500 字符: {}", preview);
+            return None;
+        }
+    };
 
     // 提取作者信息
     let author_fullname = tweet_body
@@ -145,12 +172,20 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         .map(|el| el.text().collect::<String>().trim().trim_start_matches('@').to_owned())
         .unwrap_or_else(|| username.to_owned());
 
+    debug!("解析到作者: @{} ({:?})", author_username, author_fullname);
+
     // 提取推文内容
     let content = tweet_body
         .select(&CONTENT_SEL)
         .next()
         .map(|el| clean_text(&el.inner_html()))
         .unwrap_or_default();
+
+    debug!(
+        "解析到推文内容 ({} 字): {}",
+        content.chars().count(),
+        &content[..content.len().min(80)]
+    );
 
     // 提取日期
     let published_date = tweet_body
@@ -159,8 +194,14 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         .and_then(|el| el.value().attr("title"))
         .map(|s| s.to_owned());
 
+    debug!("解析到发布日期: {:?}", published_date);
+
     // 提取统计数据
     let (comments, retweets, likes, views) = parse_tweet_stats(&tweet_body);
+    debug!(
+        "解析到统计: 评论={}, 转发={}, 点赞={}, 浏览={}",
+        comments, retweets, likes, views
+    );
 
     // 提取头像
     let avatar_url = tweet_body
@@ -168,6 +209,8 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         .next()
         .and_then(|el| el.value().attr("src"))
         .map(|src| format!("https://nitter.net{}", src));
+
+    debug!("解析到头像 URL: {:?}", avatar_url);
 
     let mut message_segments = Vec::new();
 
@@ -200,9 +243,11 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
 
     // 检查是否有引用的推文
     if let Some(quoted_text) = extract_quoted_tweet(&tweet_body) {
+        debug!("解析到引用推文");
         text.push_str(&quoted_text);
     }
 
+    debug!("最终消息长度: {} 字符", text.chars().count());
     message_segments.push(MessageSegment::Text { text });
 
     Some(message_segments)
