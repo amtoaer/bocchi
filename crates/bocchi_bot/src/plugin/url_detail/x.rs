@@ -155,7 +155,7 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
         // 引用推文中的视频
         if has_video(&media_container, &GALLERY_VIDEO_SEL) {
             message_segments.push(MessageSegment::Text {
-                text: "[引用推文中含有视频，当前不支持解析]".to_owned(),
+                text: "\n[引用推文中含有视频，当前不支持解析]".to_owned(),
             });
         }
     }
@@ -163,7 +163,7 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
     // 引用推文下半：日期
     if let Some(ref date) = quoted_date {
         message_segments.push(MessageSegment::Text {
-            text: format!("🕒 {}", date),
+            text: format!("\n🕒 {}", date),
         });
     }
 
@@ -252,7 +252,7 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
     // 主推文视频提醒（位于图片后、日期前）
     if has_video(&tweet_body, &MAIN_GALLERY_VIDEO_SEL) {
         message_segments.push(MessageSegment::Text {
-            text: "[推文中含有视频，当前不支持解析]".to_owned(),
+            text: "\n[推文中含有视频，当前不支持解析]".to_owned(),
         });
     }
 
