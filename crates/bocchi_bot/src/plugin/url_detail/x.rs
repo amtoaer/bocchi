@@ -1,13 +1,22 @@
 use std::{sync::LazyLock, time::Duration};
 
-use bocchi::schema::MessageSegment;
+use bocchi::schema::{MessageContent, MessageSegment};
+use futures::{StreamExt, stream::FuturesUnordered};
 use reqwest::header;
 use scraper::{Html, Selector};
 
+use super::RecognizedMessage;
 use crate::utils::HTTP_CLIENT;
 
 static X_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?x\.com/(\w+)/status/(\d+)").unwrap());
+
+#[derive(Debug, Clone)]
+struct XLink {
+    url: String,
+    username: String,
+    status_id: String,
+}
 
 /// Firefox UA，避免 nitter 返回空内容
 const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
@@ -101,6 +110,19 @@ fn has_video(scope: &scraper::ElementRef, sel: &Selector) -> bool {
     scope.select(sel).next().is_some()
 }
 
+fn extract_x_links(text: &str) -> Vec<XLink> {
+    X_REGEX
+        .captures_iter(text)
+        .filter_map(|caps| {
+            Some(XLink {
+                url: caps.get(0)?.as_str().to_owned(),
+                username: caps.get(1)?.as_str().to_owned(),
+                status_id: caps.get(2)?.as_str().to_owned(),
+            })
+        })
+        .collect()
+}
+
 fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut Vec<MessageSegment>) -> Option<()> {
     let quote_el = tweet_body.select(&QUOTE_SEL).next()?;
 
@@ -177,10 +199,48 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
 
 // ---- 入口 ----
 
-pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
-    let caps = X_REGEX.captures(text)?;
-    let username = caps.get(1)?.as_str();
-    let status_id = caps.get(2)?.as_str();
+pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
+    let links = extract_x_links(text);
+    match links.len() {
+        0 => None,
+        1 => {
+            let link = links.into_iter().next()?;
+            recognize_one(&link).await.map(RecognizedMessage::Normal)
+        }
+        _ => recognize_many(links).await.map(RecognizedMessage::Forward),
+    }
+}
+
+async fn recognize_many(links: Vec<XLink>) -> Option<Vec<MessageContent>> {
+    let mut futures = links
+        .into_iter()
+        .enumerate()
+        .map(|(index, link)| async move {
+            let result = recognize_one(&link).await;
+            (index, link.url, result)
+        })
+        .collect::<FuturesUnordered<_>>();
+
+    let mut messages = Vec::new();
+    while let Some((index, url, result)) = futures.next().await {
+        let content = result
+            .map(|mut segments| {
+                // 为了便于识别来源，在末尾加上链接
+                segments.push(MessageSegment::Text {
+                    text: format!("\n链接：{}", url),
+                });
+                MessageContent::Segment(segments)
+            })
+            .unwrap_or_else(|| MessageContent::Text(format!("X 链接解析失败：\n{}", url)));
+        messages.push((index, content));
+    }
+    messages.sort_by_key(|(index, _)| *index);
+    Some(messages.into_iter().map(|(_, message)| message).collect())
+}
+
+async fn recognize_one(link: &XLink) -> Option<Vec<MessageSegment>> {
+    let username = link.username.as_str();
+    let status_id = link.status_id.as_str();
 
     let nitter_url = format!("https://nitter.net/{}/status/{}", username, status_id);
 

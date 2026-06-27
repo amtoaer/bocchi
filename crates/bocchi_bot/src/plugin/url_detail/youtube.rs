@@ -3,7 +3,7 @@ use std::{sync::LazyLock, time::Duration};
 use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 
-use crate::utils::HTTP_CLIENT;
+use crate::{plugin::url_detail::RecognizedMessage, utils::HTTP_CLIENT};
 
 static YOUTUBE_VIDEO_REGEX: LazyLock<Vec<regex::Regex>> = LazyLock::new(|| {
     vec![
@@ -58,7 +58,7 @@ fn parse_video_id(text: &str) -> Option<&str> {
         .iter()
         .find_map(|re| re.captures(text).and_then(|cap| cap.get(1).map(|f| f.as_str())))
 }
-pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
+pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
     let video_id = parse_video_id(text)?;
     let url = format!(
         "https://www.googleapis.com/youtube/v3/videos?part=snippet&id={}&key={}",
@@ -93,7 +93,7 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
             video_detail.title, video_detail.channel_title, video_detail.published_at
         ),
     });
-    Some(message_segment)
+    Some(RecognizedMessage::Normal(message_segment))
 }
 
 #[cfg(test)]
