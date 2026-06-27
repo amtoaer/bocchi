@@ -154,7 +154,7 @@ impl Caller for WsAdapter {
                 response = rx => {
                     Ok(response?)
                 }
-                _ = time::sleep(time::Duration::from_secs(5)) => {
+                _ = time::sleep(time::Duration::from_secs(10)) => {
                     Err(ConnectError::Timeout.into())
                 }
             }
