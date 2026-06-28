@@ -1,7 +1,7 @@
 use std::{sync::LazyLock, time::Duration};
 
 use bocchi::schema::{MessageContent, MessageSegment};
-use futures::{StreamExt, stream::FuturesUnordered};
+use futures::{StreamExt, stream::FuturesOrdered};
 use reqwest::header;
 use scraper::{Html, Selector};
 
@@ -214,15 +214,14 @@ pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
 async fn recognize_many(links: Vec<XLink>) -> Option<Vec<MessageContent>> {
     let mut futures = links
         .into_iter()
-        .enumerate()
-        .map(|(index, link)| async move {
+        .map(|link| async move {
             let result = recognize_one(&link).await;
-            (index, link.url, result)
+            (link.url, result)
         })
-        .collect::<FuturesUnordered<_>>();
+        .collect::<FuturesOrdered<_>>();
 
-    let mut messages = Vec::new();
-    while let Some((index, url, result)) = futures.next().await {
+    let mut messages = Vec::with_capacity(futures.len());
+    while let Some((url, result)) = futures.next().await {
         let content = result
             .map(|mut segments| {
                 // 为了便于识别来源，在末尾加上链接
@@ -232,10 +231,9 @@ async fn recognize_many(links: Vec<XLink>) -> Option<Vec<MessageContent>> {
                 MessageContent::Segment(segments)
             })
             .unwrap_or_else(|| MessageContent::Text(format!("X 链接解析失败：\n{}", url)));
-        messages.push((index, content));
+        messages.push(content);
     }
-    messages.sort_by_key(|(index, _)| *index);
-    Some(messages.into_iter().map(|(_, message)| message).collect())
+    Some(messages)
 }
 
 async fn recognize_one(link: &XLink) -> Option<Vec<MessageSegment>> {
