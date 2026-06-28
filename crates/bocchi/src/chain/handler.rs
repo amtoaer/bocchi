@@ -55,7 +55,7 @@ impl Context {
             std::iter::once(MessageSegment::Reply {
                 id: self.event.message_id().to_string(),
             })
-            .chain(message.into_iter())
+            .chain(message)
             .collect(),
         )
         .await
@@ -94,7 +94,7 @@ impl Context {
     }
 
     pub async fn send_forward(&self, messages: Vec<String>) -> Result<SendMsgResult> {
-        self.send_forward_content(messages.into_iter().map(|m| MessageContent::Text(m)).collect())
+        self.send_forward_content(messages.into_iter().map(MessageContent::Text).collect())
             .await
     }
 
