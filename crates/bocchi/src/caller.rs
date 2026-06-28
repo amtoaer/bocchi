@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 use crate::{adapter::Caller, error::ApiError, schema::*};
 
@@ -143,7 +143,7 @@ pub async fn send_forward_msg(connector: &dyn Caller, param: SendForwardMsgParam
             )
             .await
         }
-        _ => bail!("Neither group_id nor user_id is specified"),
+        _ => anyhow::bail!("Neither group_id nor user_id is specified"),
     }
 }
 
