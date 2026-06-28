@@ -4,7 +4,7 @@ use reqwest::{Client, ClientBuilder};
 
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     ClientBuilder::new()
-        .timeout(Duration::from_secs(600))
+        .timeout(Duration::from_mins(3))
         .zstd(true)
         .gzip(true)
         .deflate(true)
