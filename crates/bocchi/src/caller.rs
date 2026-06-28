@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::{adapter::Caller, error::ApiError, schema::*};
 
