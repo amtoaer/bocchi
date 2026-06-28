@@ -2,7 +2,7 @@ use std::{sync::LazyLock, time::Duration};
 
 use bocchi::schema::{MessageContent, MessageSegment};
 use futures::{StreamExt, stream::FuturesOrdered};
-use reqwest::header;
+use reqwest::{StatusCode, header};
 use scraper::{Html, Selector};
 
 use super::RecognizedMessage;
@@ -19,9 +19,6 @@ struct XLink {
 }
 
 const NITTER_ORIGIN: &str = "https://nitter.net";
-
-/// Firefox UA，避免 Nitter 返回空内容。
-const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
 
 static MAIN_TWEET_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse("#m .timeline-item .tweet-body").unwrap());
 static FULLNAME_SEL: LazyLock<Selector> =
@@ -67,6 +64,57 @@ fn extract_images(scope: &scraper::ElementRef, sel: &Selector) -> Vec<String> {
         .filter_map(|el| el.value().attr("href"))
         .map(|href| format!("{}{}", NITTER_ORIGIN, href))
         .collect()
+}
+
+async fn fetch_nitter_html(url: &str) -> Option<String> {
+    const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
+    const MAX_ATTEMPTS: usize = 5;
+    const RETRY_BACKOFFS: [Duration; MAX_ATTEMPTS - 1] = [
+        Duration::from_millis(300),
+        Duration::from_millis(700),
+        Duration::from_millis(1500),
+        Duration::from_millis(3000),
+    ];
+    for attempt in 1..=MAX_ATTEMPTS {
+        let result = HTTP_CLIENT
+            .get(url)
+            .header(header::USER_AGENT, FIREFOX_UA)
+            .header(header::ACCEPT_LANGUAGE, "zh-CN,en-US;q=0.9,en;q=0.8")
+            .send()
+            .await;
+        match result {
+            Ok(resp) if resp.status().is_success() => match resp.text().await {
+                Ok(text) => return Some(text),
+                Err(e) => warn!(
+                    "读取 Nitter 响应失败，第 {}/{} 次: {}, {:?}",
+                    attempt, MAX_ATTEMPTS, url, e
+                ),
+            },
+            Ok(resp) => {
+                let status = resp.status();
+                if !matches!(
+                    status,
+                    StatusCode::TOO_MANY_REQUESTS
+                        | StatusCode::INTERNAL_SERVER_ERROR
+                        | StatusCode::BAD_GATEWAY
+                        | StatusCode::SERVICE_UNAVAILABLE
+                        | StatusCode::GATEWAY_TIMEOUT
+                ) {
+                    warn!("Nitter 返回不可重试状态码 {}: {}", status, url);
+                    return None;
+                }
+                warn!(
+                    "Nitter 返回状态码 {}，第 {}/{} 次: {}",
+                    status, attempt, MAX_ATTEMPTS, url
+                );
+            }
+            Err(e) => warn!("请求 Nitter 失败，第 {}/{} 次: {}, {:?}", attempt, MAX_ATTEMPTS, url, e),
+        }
+        if let Some(backoff) = RETRY_BACKOFFS.get(attempt - 1) {
+            tokio::time::sleep(*backoff).await;
+        }
+    }
+    None
 }
 
 pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
@@ -120,18 +168,7 @@ async fn recognize_one(link: &XLink) -> Option<Vec<MessageSegment>> {
     let status_id = link.status_id.as_str();
     let nitter_url = format!("{}/{}/status/{}", NITTER_ORIGIN, username, status_id);
 
-    let resp = HTTP_CLIENT
-        .get(&nitter_url)
-        .header(header::USER_AGENT, FIREFOX_UA)
-        .header(header::ACCEPT_LANGUAGE, "zh-CN,en-US;q=0.9,en;q=0.8")
-        .timeout(Duration::from_secs(10))
-        .send()
-        .await
-        .ok()?
-        .text()
-        .await
-        .ok()?;
-
+    let resp = fetch_nitter_html(&nitter_url).await?;
     let html = Html::parse_document(&resp);
     let tweet_body = html.select(&MAIN_TWEET_SEL).next()?;
 
