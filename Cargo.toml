@@ -64,6 +64,7 @@ tokio-stream = { version = "0.1.17", features = ["fs"] }
 base64-simd = "0.8.0"
 regex = "1.11.1"
 scraper = "0.22.0"
+governor = "0.10.0"
 
 [profile.release]
 strip = true

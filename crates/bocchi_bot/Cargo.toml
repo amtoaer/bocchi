@@ -32,3 +32,4 @@ tokio-stream = { workspace = true }
 base64-simd = { workspace = true }
 regex = { workspace = true }
 scraper = { workspace = true }
+governor = { workspace = true }
