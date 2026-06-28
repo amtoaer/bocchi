@@ -155,9 +155,10 @@ fn extract_quoted_tweet(tweet_body: &scraper::ElementRef, message_segments: &mut
     // 引用推文上半：作者 + 内容（前一个 segment 是文本，需要 \n 换行）
     let mut quote_top = format!("\n---\n引用了 @{}", username);
     if let Some(ref fullname) = quoted_fullname
-        && !fullname.is_empty() {
-            quote_top.push_str(&format!(" ({})", fullname));
-        }
+        && !fullname.is_empty()
+    {
+        quote_top.push_str(&format!(" ({})", fullname));
+    }
     quote_top.push_str(&format!(":\n{}", content));
     message_segments.push(MessageSegment::Text { text: quote_top });
     let mut last_was_image = false;
@@ -294,9 +295,11 @@ async fn recognize_one(link: &XLink) -> Option<Vec<MessageSegment>> {
     // 构建正文前半：作者 + 内容
     let mut text_top = format!("@{}", author_username);
     if let Some(ref fullname) = author_fullname
-        && !fullname.is_empty() && *fullname != author_username {
-            text_top.push_str(&format!(" ({})", fullname));
-        }
+        && !fullname.is_empty()
+        && *fullname != author_username
+    {
+        text_top.push_str(&format!(" ({})", fullname));
+    }
     text_top.push_str(&format!(":\n{}", content));
     message_segments.push(MessageSegment::Text { text: text_top });
 
