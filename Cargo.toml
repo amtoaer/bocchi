@@ -12,7 +12,7 @@ edition = "2024"
 publish = false
 
 [workspace.dependencies]
-bocchi = { path = "crates/bocchi", features = ["lagrange"] }
+bocchi = { path = "crates/bocchi", features = ["napcat"] }
 tokio-tungstenite = { version = "0.26.2", features = [] }
 tokio = { version = "1.45.0", features = [
     "net",
@@ -47,6 +47,10 @@ reqwest = { version = "0.12.15", features = [
     "charset",
     "rustls-tls",
     "json",
+    "gzip",
+    "deflate",
+    "zstd",
+    "brotli",
 ], default-features = false }
 fantoccini = { version = "0.21.5", features = [
     "rustls-tls",
@@ -59,6 +63,7 @@ futures = "0.3.31"
 tokio-stream = { version = "0.1.17", features = ["fs"] }
 base64-simd = "0.8.0"
 regex = "1.11.1"
+scraper = "0.22.0"
 
 [profile.release]
 strip = true

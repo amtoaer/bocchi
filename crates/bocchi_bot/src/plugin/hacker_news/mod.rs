@@ -15,9 +15,9 @@ struct HackerStory {
 
 impl Display for HackerStory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "标题：{}\n", self.title)?;
+        writeln!(f, "标题：{}", self.title)?;
         if let Some(url) = &self.url {
-            write!(f, "链接：{}\n", url)?;
+            writeln!(f, "链接：{}", url)?;
         }
         write!(f, "评论：https://news.ycombinator.com/item?id={}", self.id)
     }

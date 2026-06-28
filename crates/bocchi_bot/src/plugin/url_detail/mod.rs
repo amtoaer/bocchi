@@ -1,11 +1,21 @@
 mod bilibili;
 mod spotify;
+mod x;
 mod youtube;
 
 use std::{future::Future, pin::Pin};
 
-use bocchi::{chain::Rule, plugin::Plugin, schema::MessageSegment};
+use bocchi::{
+    chain::Rule,
+    plugin::Plugin,
+    schema::{MessageContent, MessageSegment},
+};
 use futures::{StreamExt, stream::FuturesUnordered};
+
+pub(crate) enum RecognizedMessage {
+    Normal(Vec<MessageSegment>),
+    Forward(Vec<MessageContent>),
+}
 
 pub fn url_detail_plugin() -> Plugin {
     let mut plugin = Plugin::new("链接解析插件", "解析消息中的链接，展示详情");
@@ -15,17 +25,22 @@ pub fn url_detail_plugin() -> Plugin {
         Rule::on_group_message(),
         |ctx| async move {
             let plain_text = ctx.event.plain_text();
-            let futures: [Pin<Box<dyn Future<Output = Option<Vec<MessageSegment>>> + Send>>; 3] = [
+            let futures: [Pin<Box<dyn Future<Output = Option<RecognizedMessage>> + Send>>; 4] = [
                 Box::pin(bilibili::recognizer(&plain_text)),
                 Box::pin(youtube::recognizer(&plain_text)),
                 Box::pin(spotify::recognizer(&plain_text)),
+                Box::pin(x::recognizer(&plain_text)),
             ];
             let mut futures_unordered = futures.into_iter().collect::<FuturesUnordered<_>>();
             while let Some(res) = futures_unordered.next().await {
                 let Some(message) = res else {
                     continue;
                 };
-                if let Err(e) = ctx.reply_content(message).await {
+                let send_result = match message {
+                    RecognizedMessage::Normal(message) => ctx.reply_content(message).await,
+                    RecognizedMessage::Forward(messages) => ctx.send_forward_content(messages).await,
+                };
+                if let Err(e) = send_result {
                     error!("获取消息成功但发送失败: {:?}", e);
                 }
                 // 暂时认为消息中只会包含一种链接

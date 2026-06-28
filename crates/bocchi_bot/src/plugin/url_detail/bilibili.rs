@@ -3,7 +3,7 @@ use std::{sync::LazyLock, time::Duration};
 use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 
-use crate::utils::HTTP_CLIENT;
+use crate::{plugin::url_detail::RecognizedMessage, utils::HTTP_CLIENT};
 
 static BILIBILI_AV_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/av(\d+)").unwrap());
@@ -72,7 +72,7 @@ async fn parse_video_id(text: &str) -> Option<VideoID> {
     parse_raw_video_id(url_after_redirect)
 }
 
-pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
+pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
     let video_id = parse_video_id(text).await?;
     let url = match video_id {
         VideoID::AV(id) => format!("https://api.bilibili.com/x/web-interface/view?aid={}", id),
@@ -89,7 +89,7 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
         .ok()?;
     let data = resp.get("data")?.clone();
     let video_detail: VideoDetail = serde_json::from_value(data).ok()?;
-    Some(vec![
+    Some(RecognizedMessage::Normal(vec![
         MessageSegment::Image {
             file: video_detail.pic,
             r#type: None,
@@ -106,7 +106,7 @@ pub(crate) async fn recognizer(text: &str) -> Option<Vec<MessageSegment>> {
                 video_detail.pubdate.with_timezone(&chrono::Local)
             ),
         },
-    ])
+    ]))
 }
 
 #[cfg(test)]

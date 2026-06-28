@@ -61,10 +61,10 @@ fn docker_connect() -> &'static Docker {
 
 async fn docker_status(container_name: &str) -> Result<ContainerStateStatusEnum, anyhow::Error> {
     let stats = docker_connect().inspect_container(container_name, None).await?;
-    Ok(stats
+    stats
         .state
         .and_then(|state| state.status)
-        .ok_or_else(|| anyhow::Error::msg("未获取到容器状态"))?)
+        .ok_or_else(|| anyhow::Error::msg("未获取到容器状态"))
 }
 
 async fn docker_start(container_name: &str) -> Result<(), anyhow::Error> {
