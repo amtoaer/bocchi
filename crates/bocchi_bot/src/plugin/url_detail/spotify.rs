@@ -28,18 +28,16 @@ struct Token {
 async fn get_spotify_token() -> Result<String> {
     static SPOTIFY_TOKEN: RwLock<Option<Token>> = RwLock::const_new(None);
     let read_guard = SPOTIFY_TOKEN.read().await;
-    if let Some(token) = read_guard.as_ref() {
-        if token.expire_time > chrono::Local::now() {
+    if let Some(token) = read_guard.as_ref()
+        && token.expire_time > chrono::Local::now() {
             return Ok(token.access_token.to_owned());
         }
-    }
     drop(read_guard);
     let mut write_guard = SPOTIFY_TOKEN.write().await;
-    if let Some(token) = write_guard.as_ref() {
-        if token.expire_time > chrono::Local::now() {
+    if let Some(token) = write_guard.as_ref()
+        && token.expire_time > chrono::Local::now() {
             return Ok(token.access_token.to_owned());
         }
-    }
     let current_time = chrono::Local::now();
     let resp = HTTP_CLIENT
         .post("https://accounts.spotify.com/api/token")
