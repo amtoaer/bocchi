@@ -1,7 +1,8 @@
-use std::{sync::LazyLock, time::Duration};
+use std::{num::NonZeroU32, sync::LazyLock, time::Duration};
 
 use bocchi::schema::{MessageContent, MessageSegment};
 use futures::{StreamExt, stream::FuturesOrdered};
+use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use reqwest::{StatusCode, header};
 use scraper::{Html, Selector};
 
@@ -19,6 +20,14 @@ struct XLink {
 }
 
 const NITTER_ORIGIN: &str = "https://nitter.net";
+
+static NITTER_RATE_LIMITER: LazyLock<DefaultDirectRateLimiter> = LazyLock::new(|| {
+    RateLimiter::direct(
+        Quota::with_period(Duration::from_millis(1500))
+            .unwrap()
+            .allow_burst(NonZeroU32::new(2).unwrap()),
+    )
+});
 
 static MAIN_TWEET_SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse("#m .timeline-item .tweet-body").unwrap());
 static FULLNAME_SEL: LazyLock<Selector> =
@@ -69,13 +78,9 @@ fn extract_images(scope: &scraper::ElementRef, sel: &Selector) -> Vec<String> {
 async fn fetch_nitter_html(url: &str) -> Option<String> {
     const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
     const MAX_ATTEMPTS: usize = 5;
-    const RETRY_BACKOFFS: [Duration; MAX_ATTEMPTS - 1] = [
-        Duration::from_millis(300),
-        Duration::from_millis(700),
-        Duration::from_millis(1500),
-        Duration::from_millis(3000),
-    ];
+
     for attempt in 1..=MAX_ATTEMPTS {
+        NITTER_RATE_LIMITER.until_ready().await;
         let result = HTTP_CLIENT
             .get(url)
             .header(header::USER_AGENT, FIREFOX_UA)
@@ -109,9 +114,6 @@ async fn fetch_nitter_html(url: &str) -> Option<String> {
                 );
             }
             Err(e) => warn!("请求 Nitter 失败，第 {}/{} 次: {}, {:?}", attempt, MAX_ATTEMPTS, url, e),
-        }
-        if let Some(backoff) = RETRY_BACKOFFS.get(attempt - 1) {
-            tokio::time::sleep(*backoff).await;
         }
     }
     None
