@@ -13,7 +13,7 @@ pub fn ip_plugin() -> Plugin {
     plugin.on(
         "获取服务器公网 IP",
         i32::default(),
-        Rule::on_group_id(954985908) & Rule::on_exact_match("/ip"),
+        Rule::on_group_id(954985908) & Rule::on_exact_match("#ip"),
         |ctx| async move {
             let response = match public_ip().await {
                 Ok(ip) => ip.to_string(),
