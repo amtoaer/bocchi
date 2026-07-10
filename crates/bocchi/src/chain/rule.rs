@@ -42,9 +42,9 @@ impl Rule {
         }
     }
 
-    pub fn on_sender_id(user_id: i64) -> Rule {
+    pub fn on_sender_id(user_id: u64) -> Rule {
         Self {
-            name: format!("on_sender_id({user_id})").into(),
+            name: format!("on_sender_id({})", mask_id(user_id)).into(),
             inner: InnerRule::OnSender(Box::new(move |sender: &Sender| -> bool {
                 sender.user_id == Some(user_id)
             })),
@@ -53,7 +53,7 @@ impl Rule {
 
     pub fn on_group_id(group_id: u64) -> Rule {
         Self {
-            name: format!("on_group_id({group_id})").into(),
+            name: format!("on_group_id({})", mask_id(group_id)).into(),
             inner: InnerRule::OnEvent(Box::new(move |event: &Event| -> bool {
                 matches!(event, Event::GroupMessage(e) if e.group_id == group_id)
             })),
@@ -82,6 +82,15 @@ impl Rule {
             text.ends_with(suffix.trim())
         })
     }
+}
+
+fn mask_id(id: u64) -> String {
+    let id = id.to_string();
+    if id.len() <= 6 {
+        return "*".repeat(id.len());
+    }
+
+    format!("{}{}{}", &id[..3], "*".repeat(id.len() - 6), &id[id.len() - 3..])
 }
 
 impl ops::BitAnd<Rule> for Rule {
