@@ -3,7 +3,10 @@ use std::{sync::LazyLock, time::Duration};
 use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 
-use crate::{plugin::url_detail::RecognizedMessage, utils::HTTP_CLIENT};
+use crate::{
+    plugin::url_detail::{RecognizedContent, RecognizedMessage},
+    utils::HTTP_CLIENT,
+};
 
 static BILIBILI_AV_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"https?://(?:www\.)?bilibili\.com/video/av(\d+)").unwrap());
@@ -89,24 +92,27 @@ pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
         .ok()?;
     let data = resp.get("data")?.clone();
     let video_detail: VideoDetail = serde_json::from_value(data).ok()?;
-    Some(RecognizedMessage::Normal(vec![
-        MessageSegment::Image {
-            file: video_detail.pic,
-            r#type: None,
-            url: None,
-            cache: Some(true),
-            proxy: Some(false),
-            timeout: Some(10),
-        },
-        MessageSegment::Text {
-            text: format!(
-                "标题：{}\n作者：{}\n发布时间：{}",
-                video_detail.title,
-                video_detail.owner.name,
-                video_detail.pubdate.with_timezone(&chrono::Local)
-            ),
-        },
-    ]))
+    Some(RecognizedMessage::new(
+        RecognizedContent::Normal(vec![
+            MessageSegment::Image {
+                file: video_detail.pic,
+                r#type: None,
+                url: None,
+                cache: Some(true),
+                proxy: Some(false),
+                timeout: Some(10),
+            },
+            MessageSegment::Text {
+                text: format!(
+                    "标题：{}\n作者：{}\n发布时间：{}",
+                    video_detail.title,
+                    video_detail.owner.name,
+                    video_detail.pubdate.with_timezone(&chrono::Local)
+                ),
+            },
+        ]),
+        Vec::new(),
+    ))
 }
 
 #[cfg(test)]

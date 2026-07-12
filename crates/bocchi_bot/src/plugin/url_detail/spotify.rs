@@ -5,7 +5,10 @@ use bocchi::schema::MessageSegment;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 
-use crate::{plugin::url_detail::RecognizedMessage, utils::HTTP_CLIENT};
+use crate::{
+    plugin::url_detail::{RecognizedContent, RecognizedMessage},
+    utils::HTTP_CLIENT,
+};
 
 static SPOTIFY_MUSIC_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new("https?://open.spotify.com/track/([a-zA-Z0-9]+)").unwrap());
@@ -155,7 +158,10 @@ pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
             resp.album.get_release_date()
         ),
     });
-    Some(RecognizedMessage::Normal(message_segment))
+    Some(RecognizedMessage::new(
+        RecognizedContent::Normal(message_segment),
+        Vec::new(),
+    ))
 }
 
 #[cfg(test)]

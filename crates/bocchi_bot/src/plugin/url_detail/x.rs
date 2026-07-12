@@ -6,7 +6,7 @@ use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use reqwest::{StatusCode, header};
 use scraper::{Html, Selector};
 
-use super::RecognizedMessage;
+use super::{RecognizedContent, RecognizedMessage};
 use crate::utils::HTTP_CLIENT;
 
 static X_REGEX: LazyLock<regex::Regex> =
@@ -135,9 +135,13 @@ pub(crate) async fn recognizer(text: &str) -> Option<RecognizedMessage> {
         0 => None,
         1 => {
             let link = links.into_iter().next()?;
-            recognize_one(&link).await.map(RecognizedMessage::Normal)
+            recognize_one(&link)
+                .await
+                .map(|content| RecognizedMessage::new(RecognizedContent::Normal(content), Vec::new()))
         }
-        _ => recognize_many(links).await.map(RecognizedMessage::Forward),
+        _ => recognize_many(links)
+            .await
+            .map(|content| RecognizedMessage::new(RecognizedContent::Forward(content), Vec::new())),
     }
 }
 
