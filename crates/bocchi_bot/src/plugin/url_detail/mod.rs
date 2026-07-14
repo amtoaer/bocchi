@@ -1,6 +1,7 @@
 mod bilibili;
 mod pixiv;
 mod spotify;
+mod steam;
 mod x;
 mod youtube;
 
@@ -38,12 +39,13 @@ pub fn url_detail_plugin() -> Plugin {
         Rule::on_group_message(),
         |ctx| async move {
             let plain_text = ctx.event.plain_text();
-            let futures: [Pin<Box<dyn Future<Output = Option<RecognizedMessage>> + Send>>; 5] = [
+            let futures: [Pin<Box<dyn Future<Output = Option<RecognizedMessage>> + Send>>; 6] = [
                 Box::pin(bilibili::recognizer(&plain_text)),
                 Box::pin(youtube::recognizer(&plain_text)),
                 Box::pin(spotify::recognizer(&plain_text)),
                 Box::pin(x::recognizer(&plain_text)),
                 Box::pin(pixiv::recognizer(&plain_text)),
+                Box::pin(steam::recognizer(&plain_text)),
             ];
             let mut futures_unordered = futures.into_iter().collect::<FuturesUnordered<_>>();
             while let Some(res) = futures_unordered.next().await {
