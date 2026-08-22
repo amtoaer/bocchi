@@ -20,6 +20,8 @@ struct XLink {
 }
 
 const NITTER_ORIGIN: &str = "https://nitter.net";
+const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0";
+const HTML_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 
 static NITTER_RATE_LIMITER: LazyLock<DefaultDirectRateLimiter> = LazyLock::new(|| {
     RateLimiter::direct(
@@ -75,8 +77,22 @@ fn extract_images(scope: &scraper::ElementRef, sel: &Selector) -> Vec<String> {
         .collect()
 }
 
+fn extract_stats(scope: &scraper::ElementRef) -> [String; 4] {
+    let mut stats = scope.select(&STATS_SEL).map(|el| {
+        let value = el
+            .text()
+            .collect::<String>()
+            .trim()
+            .chars()
+            .filter(|c| c.is_ascii_digit() || *c == ',')
+            .collect::<String>();
+        if value.is_empty() { "0".to_owned() } else { value }
+    });
+
+    std::array::from_fn(|_| stats.next().unwrap_or_else(|| "0".to_owned()))
+}
+
 async fn fetch_nitter_html(url: &str) -> Option<String> {
-    const FIREFOX_UA: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0";
     const MAX_ATTEMPTS: usize = 5;
 
     for attempt in 1..=MAX_ATTEMPTS {
@@ -84,12 +100,18 @@ async fn fetch_nitter_html(url: &str) -> Option<String> {
         let result = HTTP_CLIENT
             .get(url)
             .header(header::USER_AGENT, FIREFOX_UA)
+            .header(header::ACCEPT, HTML_ACCEPT)
             .header(header::ACCEPT_LANGUAGE, "zh-CN,en-US;q=0.9,en;q=0.8")
+            .header("sec-fetch-dest", "document")
+            .header("sec-fetch-mode", "navigate")
+            .header("sec-fetch-site", "none")
+            .header("sec-fetch-user", "?1")
             .send()
             .await;
         match result {
             Ok(resp) if resp.status().is_success() => match resp.text().await {
-                Ok(text) => return Some(text),
+                Ok(text) if !text.is_empty() => return Some(text),
+                Ok(_) => warn!("Nitter 返回空响应，第 {}/{} 次: {}", attempt, MAX_ATTEMPTS, url),
                 Err(e) => warn!(
                     "读取 Nitter 响应失败，第 {}/{} 次: {}, {:?}",
                     attempt, MAX_ATTEMPTS, url, e
@@ -197,23 +219,7 @@ async fn recognize_one(link: &XLink) -> Option<Vec<MessageSegment>> {
         .next()
         .and_then(|el| el.value().attr("title"))
         .map(format_date);
-    let stats: Vec<String> = tweet_body
-        .select(&STATS_SEL)
-        .map(|el| {
-            el.text()
-                .collect::<String>()
-                .trim()
-                .chars()
-                .filter(|c| c.is_ascii_digit() || *c == ',')
-                .collect::<String>()
-        })
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    let comments = stats.first().cloned().unwrap_or_else(|| "0".to_string());
-    let retweets = stats.get(1).cloned().unwrap_or_else(|| "0".to_string());
-    let likes = stats.get(2).cloned().unwrap_or_else(|| "0".to_string());
-    let views = stats.get(3).cloned().unwrap_or_else(|| "0".to_string());
+    let [comments, retweets, likes, views] = extract_stats(&tweet_body);
 
     let mut segments = Vec::new();
     let mut last_was_image = false;
@@ -354,5 +360,31 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_empty_stat_keeps_position() {
+        let html = Html::parse_fragment(
+            r#"
+            <div id="m">
+              <div class="timeline-item">
+                <div class="tweet-body">
+                  <div class="tweet-stats">
+                    <span class="tweet-stat"><span class="icon-comment"></span></span>
+                    <span class="tweet-stat"><span class="icon-retweet"></span> 223</span>
+                    <span class="tweet-stat"><span class="icon-heart"></span> 2,233</span>
+                    <span class="tweet-stat"><span class="icon-views"></span> 16,850</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            "#,
+        );
+        let tweet_body = html.select(&MAIN_TWEET_SEL).next().unwrap();
+
+        assert_eq!(
+            extract_stats(&tweet_body),
+            ["0", "223", "2,233", "16,850"].map(str::to_owned)
+        );
     }
 }
